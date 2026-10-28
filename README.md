@@ -2,7 +2,83 @@
 
 CIS 5450 (Big Data Analytics) Final Project, Fall 2026
 
-Predicting whether a clinical drug trial will succeed, using trial design data from ClinicalTrials.gov combined with NIH grant funding data and news and public-attention ("hype") signals.
+> **Research question:** At the moment a drug trial is registered, can we predict whether it will finish and whether it will work? And do money (NIH grants), hype (news, Wikipedia), or an AI reading of the science tell us anything the trial design doesn't?
+
+```mermaid
+flowchart LR
+  subgraph DATA["📂 DATA SOURCES"]
+    direction TB
+    AACT["<b>AACT / ClinicalTrials.gov</b><br/>~95.7k drug trials, 2005–2019"]
+    NIH["<b>NIH RePORTER</b><br/>grants linked by NCT ID"]
+    GDELT["<b>GDELT 2.0</b><br/>news volume and tone"]
+    WIKI["<b>Wikipedia Pageviews</b><br/>drug and sponsor attention"]
+    PUBMED["<b>PubMed</b><br/>prior papers on the drug"]
+    CHEMBL["<b>ChEMBL</b><br/>drug target and mechanism"]
+    FDA["<b>Drugs@FDA</b><br/>approvals (stretch)"]
+    SEC["<b>SEC EDGAR</b><br/>8-K mentions (optional)"]
+    AACT ~~~ NIH ~~~ GDELT ~~~ WIKI ~~~ PUBMED ~~~ CHEMBL ~~~ FDA ~~~ SEC
+  end
+
+  subgraph HOW["⚙️ HOW"]
+    direction TB
+    subgraph LANE_A["Data path"]
+      direction TB
+      JOIN["<b>1a. Join</b><br/>one row per trial"]
+      FEAT["<b>2a. Data features</b><br/>design · funding · hype"]
+      JOIN --> FEAT
+    end
+    subgraph LANE_B["AI science path"]
+      direction TB
+      TEXT["<b>1b. Science text</b><br/>trial description + PubMed<br/>+ ChEMBL, before start date"]
+      AI["<b>2b. AI science read</b><br/>embeddings for all trials<br/>LLM extraction on a sample"]
+      SCI["<b>3b. Science features</b><br/>mechanism · evidence · plausibility"]
+      TEXT --> AI --> SCI
+    end
+    MODEL["<b>4. Models</b><br/>baseline → logistic → RF / GBM"]
+    TEST["<b>5. Compare and test</b><br/>design vs. +funding vs. +hype vs. +AI"]
+    FEAT --> MODEL
+    SCI --> MODEL
+    MODEL --> TEST
+  end
+
+  subgraph SHOW["🎯 WHAT WE WILL SHOW"]
+    direction TB
+    Q1["<b>Q1 Completion</b><br/>finishes vs. stopped early"]
+    Q2["<b>Q2 Efficacy</b><br/>primary endpoint met"]
+    Q3["<b>Q3 Money vs. hype</b><br/>which outside signal helps"]
+    Q4["<b>Q4 Science</b><br/>does AI reading the science<br/>add signal beyond the data?"]
+    APP["<b>Stretch</b><br/>FDA approval"]
+    Q1 ~~~ Q2 ~~~ Q3 ~~~ Q4 ~~~ APP
+  end
+
+  DATA ==> HOW ==> SHOW
+
+  classDef trial fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#0f172a
+  classDef money fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#0f172a
+  classDef hype fill:#ffe4e6,stroke:#e11d48,stroke-width:2px,color:#0f172a
+  classDef extra fill:#f1f5f9,stroke:#94a3b8,stroke-width:2px,stroke-dasharray:5 3,color:#0f172a
+  classDef step fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#0f172a
+  classDef q2 fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#0f172a
+  classDef q3 fill:#fff7ed,stroke:#ea580c,stroke-width:2px,color:#0f172a
+  classDef sci fill:#ccfbf1,stroke:#0d9488,stroke-width:2px,color:#0f172a
+
+  class AACT,Q1 trial
+  class NIH money
+  class GDELT,WIKI hype
+  class FDA,SEC,APP extra
+  class JOIN,FEAT,MODEL,TEST step
+  class Q2 q2
+  class Q3 q3
+  class PUBMED,CHEMBL,TEXT,AI,SCI,Q4 sci
+
+  style DATA fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#0f172a
+  style HOW fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#0f172a
+  style LANE_A fill:#fef9e7,stroke:#d97706,stroke-width:1px,color:#0f172a
+  style LANE_B fill:#f0fdfa,stroke:#0d9488,stroke-width:1px,color:#0f172a
+  style SHOW fill:#faf5ff,stroke:#7c3aed,stroke-width:2px,color:#0f172a
+```
+
+Predicting whether a clinical drug trial will succeed, using trial design data from ClinicalTrials.gov combined with NIH grant funding data, news and public-attention ("hype") signals, and an AI reading of the science behind each trial.
 
 ## Objective
 
@@ -13,6 +89,7 @@ A trial that *finishes* is not the same as a drug that *works*: most termination
 - **Q1 (completion):** can trial design features predict whether a trial completes or is stopped?
 - **Q2 (efficacy):** among completed trials with posted results, can the same features predict whether the trial met its primary endpoint? Do the important features differ from Q1?
 - **Q3 (money vs. hype):** do funding and track record (NIH grants) or public attention (news, Wikipedia) improve either model beyond design features alone?
+- **Q4 (science):** does an AI reading of the science (how the drug works, how strong the earlier evidence is) add signal beyond the structured data?
 
 See [docs/related-work.md](docs/related-work.md) for prior work and how this project differs.
 
@@ -48,6 +125,8 @@ All sources are free, public, and legal. None are synthetic.
 | --- | --- | --- |
 | [AACT](https://aact.ctti-clinicaltrials.org/) (ClinicalTrials.gov) | Core trial table: phase, design, sponsor, enrollment, sites, conditions, status, posted results | Free account; Postgres connection or static download |
 | [NIH RePORTER / ExPORTER](https://reporter.nih.gov/exporter) | NIH grants linked to the ClinicalTrials.gov trials they support (Clinical Studies file, joined on core project number): award amount, funding institute, activity code, PI history, abstracts | Bulk CSV download; no account |
+| [PubMed](https://pubmed.ncbi.nlm.nih.gov/) | Abstracts of papers about each drug published before the trial started, for the AI science read | Free NCBI E-utilities API |
+| [ChEMBL](https://www.ebi.ac.uk/chembl/) | Drug targets, mechanism of action, and highest prior development phase | Bulk download or free REST API |
 | [Drugs@FDA](https://www.fda.gov/drugs/drug-approvals-and-databases/drugsfda-data-files) | Approval records for the stretch FDA label | Bulk download |
 | [GDELT 2.0](https://www.gdeltproject.org/) | Global news coverage counts and pre-computed tone per drug/sponsor over time (2015+) | Raw CSV files or Google BigQuery public dataset |
 | [Wikimedia Pageviews API](https://wikimedia.org/api/rest_v1/) | Daily page views for drug, sponsor, and condition articles (mid-2015+) | Free REST API |
@@ -61,6 +140,11 @@ All sources are free, public, and legal. None are synthetic.
 
 **Hype (news / attention):** news article count and average tone in the window before trial start, Wikipedia page views for the drug and sponsor, attention trend (growth rate), and a `has_news` flag. GDELT tone is already computed, so no heavy NLP is needed.
 
+**Science (AI read):** an AI reads each trial's description together with PubMed abstracts and ChEMBL records dated before the trial start. Two layers:
+
+- *Embeddings for every trial:* a biomedical language model (BioBERT or PubMedBERT) turns the text into vectors, reduced with PCA. Runs locally for free on all trials.
+- *LLM extraction on a sample of a few thousand trials:* an LLM fills in structured fields: mechanism of action class, new vs. known target, whether a successful earlier-phase trial is cited, number of supporting prior papers, surrogate vs. clinical endpoint, and a 1–5 scientific plausibility score. The LLM extracts facts; it is never asked to predict the outcome directly.
+
 ## Leakage rules
 
 Every feature must be knowable at or before trial start:
@@ -69,18 +153,22 @@ Every feature must be knowable at or before trial start:
 - Site and country counts can change after a trial starts. Treat them with care and test the models with and without them.
 - Exclude `why_stopped`, posted results, completion dates, and anything updated after the outcome, except when building labels.
 - Grant and hype features are measured only in a fixed window **before** the trial's start date. Coverage after a termination is announced would leak the answer.
+- AI science features use only text written before the trial start: PubMed papers dated before it, and the trial description as first posted (from record history where possible, since sponsors can edit it later).
+- LLMs trained after 2019 may already know how a trial ended. We ask the LLM to recall the outcome for a sample of trials; if it often can, we flag those trials and lean on the embedding features instead.
 
 ## Planned pipeline
 
 1. **Ingest:** pull AACT tables (`studies`, `designs`, `sponsors`, `facilities`, `conditions`, `interventions`, `eligibilities`, `outcomes`, `outcome_analyses`) and the NIH ExPORTER projects and clinical studies files; save snapshots locally.
 2. **Wrangle and join:** build one row per trial with SQL joins and aggregations. Join NIH grants on NCT ID through the clinical studies link. Normalize drug names (regex) to match against GDELT, Wikipedia, and Drugs@FDA.
 3. **Hype join:** for each trial, aggregate news and page-view metrics over the pre-start window.
-4. **EDA:** termination rate by phase, sponsor type, disease area, and year; funding and hype distributions; each against outcome.
-5. **Modeling:** a phase + disease-area baseline, then logistic regression, then tree ensembles (random forest, gradient boosting). Handle class imbalance with class weights. Report ROC-AUC, PR-AUC, and F1. Ablation: design only vs. design + funding vs. design + hype vs. all.
-6. **Hypothesis tests (permutation):**
+4. **AI science read:** pull pre-start PubMed abstracts and ChEMBL records per drug, embed trial text and abstracts for all trials, and run LLM extraction on a sample.
+5. **EDA:** termination rate by phase, sponsor type, disease area, and year; funding, hype, and science-feature distributions; each against outcome.
+6. **Modeling:** a phase + disease-area baseline, then logistic regression, then tree ensembles (random forest, gradient boosting). Handle class imbalance with class weights. Report ROC-AUC, PR-AUC, and F1. Ablation: design only vs. design + funding vs. design + hype vs. design + AI science vs. all.
+7. **Hypothesis tests (permutation):**
    - H1: termination rate differs between industry and academic sponsors.
    - H2: high-hype trials have a different success rate than low-hype trials (within the industry subset, to avoid confounding).
    - H3: NIH-funded trials have a different completion rate than comparable academic trials without NIH funding.
+   - H4: trials with a high LLM plausibility score meet their primary endpoint more often than trials with a low score.
 
 ## Anticipated challenges
 
@@ -89,6 +177,8 @@ Every feature must be knowable at or before trial start:
 - **Entity matching.** Drug names vary (brand vs. generic vs. code names like `ABC-123`). Matching across sources needs regex cleanup and alias tables.
 - **Termination isn't always failure.** Many trials stop for business or enrollment reasons, which is why Target B exists.
 - **Anticipated enrollment.** AACT keeps only the final value; recovering the original may require record history for a sample.
+- **AI memorization.** An LLM may recognize famous trials and their results. The recall check and the embedding-only comparison guard against this.
+- **AI cost.** LLM calls on ~95k trials are expensive, so LLM extraction runs on a sample and embeddings cover the rest.
 - **Class imbalance.** About 86% of trials complete.
 - **Time coverage.** GDELT and Wikipedia pageviews start around 2015, so hype features only exist for 2015–2019 trials.
 
@@ -107,5 +197,6 @@ Every feature must be knowable at or before trial start:
 | --- | --- |
 | TBD | Data ingestion (AACT) and joins |
 | TBD | Funding (NIH RePORTER) and hype data (GDELT, Wikipedia), entity matching |
+| TBD | AI science read (PubMed, ChEMBL, embeddings, LLM extraction) |
 | TBD | EDA and hypothesis testing |
 | TBD | Modeling and evaluation |
