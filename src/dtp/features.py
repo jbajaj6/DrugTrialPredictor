@@ -59,8 +59,12 @@ FEATURE_GROUPS = {
     "sponsor_history": SPONSOR_HISTORY,
     "sites": POST_START_RISKY,
     # filled in as the other joins land:
-    "funding": ["has_nih_grant", "nih_n_grants", "nih_total_cost"],
-    "hype": ["has_news", "news_count", "news_tone", "wiki_views"],
+    # NIH grants awarded by the trial's start year (has_nih_link is left out: links are
+    # reported by grantees after the fact, so the link itself may depend on the outcome)
+    "funding": ["has_nih_grant", "nih_n_grants", "nih_log_award", "nih_grant_years",
+                "nih_has_r01", "nih_has_cooperative"],
+    # Wikipedia attention to the drug in the 6 months before start (2016+ trials only)
+    "hype": ["wiki_has_article", "wiki_views", "wiki_trend"],
 }
 
 LABEL_COLS = ["completed", "withdrawn", "met_primary"]
@@ -228,10 +232,15 @@ def apply_cohort(df: pd.DataFrame, max_lag: int = config.MAX_REG_LAG_DAYS) -> pd
     return df[df["reg_lag_days"] <= max_lag].reset_index(drop=True)
 
 
-def build(raw: pd.DataFrame, hist: pd.DataFrame | None = None, cohort: bool = True) -> pd.DataFrame:
+def build(raw: pd.DataFrame, hist: pd.DataFrame | None = None, cohort: bool = True,
+          funding: pd.DataFrame | None = None, hype: pd.DataFrame | None = None) -> pd.DataFrame:
+    """funding / hype: per-trial frames keyed on nct_id from dtp.ingest.nih / dtp.ingest.hype."""
     df = add_design_features(add_labels(raw))
     if hist is not None:
         df = add_sponsor_history(df, hist)
+    for extra in (funding, hype):
+        if extra is not None:
+            df = df.merge(extra, on="nct_id", how="left")
     if cohort:
         df = apply_cohort(df)
     return df.drop(columns=["elig_criteria"])
@@ -241,7 +250,15 @@ def main() -> None:
     raw = pd.read_parquet(config.INTERIM / "trials_raw.parquet")
     hist_path = config.INTERIM / "sponsor_history.parquet"
     hist = pd.read_parquet(hist_path) if hist_path.exists() else None
-    df = build(raw, hist)
+    from dtp.ingest import hype, nih
+
+    funding = wiki = None
+    if nih.LINKS_CSV.exists() and any((nih.NIH_DIR / "api").glob("batch_*.json")):
+        funding = nih.funding_features(raw, nih.load_links(), nih.load_grant_years())
+    if any(hype.WIKI_CACHE.glob("batch_*.json")):
+        wiki = hype.wiki_features(raw, hype.load_wiki())
+    df = build(raw, hist, funding=funding, hype=wiki)
+    print(f"joined: funding={'yes' if funding is not None else 'no'}, wikipedia={'yes' if wiki is not None else 'no'}")
     out = config.PROCESSED / "trials.parquet"
     df.to_parquet(out, index=False)
     print(f"cohort: {len(df):,} of {len(raw):,} trials registered <= {config.MAX_REG_LAG_DAYS} days after start")

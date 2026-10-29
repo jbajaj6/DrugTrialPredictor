@@ -26,15 +26,23 @@ ABLATIONS = {
     "design": ["design"],
     "design+sponsor_history": ["design", "sponsor_history"],
     "design+sponsor_history+funding": ["design", "sponsor_history", "funding"],
+}
+# Hype data only exists for trials starting 2016+, so its comparison uses its own split.
+HYPE_SPLIT = {"years": (2016, 2019), "train_max_year": 2017}
+HYPE_ABLATIONS = {
+    "design+sponsor_history": ["design", "sponsor_history"],
     "design+sponsor_history+hype": ["design", "sponsor_history", "hype"],
-    "all": ["design", "sponsor_history", "funding", "hype"],
 }
 # Not a candidate model: shows how much site counts (which change after start) would inflate results.
 LEAKAGE_CHECK = {"design+sponsor_history+sites (leaky)": ["design", "sponsor_history", "sites"]}
 
 
-def time_split(df: pd.DataFrame, target: str, train_max_year: int = config.TRAIN_MAX_YEAR):
+def time_split(df: pd.DataFrame, target: str, train_max_year: int = config.TRAIN_MAX_YEAR,
+               years: tuple[int, int] | None = None):
+    """Train on start years <= train_max_year, test on later ones (optionally within `years`)."""
     d = df[df[target].notna()]
+    if years:
+        d = d[d["start_year"].between(*years)]
     return d[d["start_year"] <= train_max_year], d[d["start_year"] > train_max_year]
 
 
@@ -84,9 +92,9 @@ def phase_disease_baseline(train: pd.DataFrame, test: pd.DataFrame, target: str)
     return np.array([by_cell.get(k, by_phase.get(k[0], overall)) for k in keys])
 
 
-def fit(df: pd.DataFrame, target: str, groups: list[str], model: str = "grad_boost"):
+def fit(df: pd.DataFrame, target: str, groups: list[str], model: str = "grad_boost", **split):
     """Fit one model on the time split. Returns (pipeline, feature columns, test frame with `pred`)."""
-    train, test = time_split(df, target)
+    train, test = time_split(df, target, **split)
     cols = feature_list(df, groups)
     pipe = Pipeline([("prep", preprocessor(cols)), ("model", make_models()[model])])
     pipe.fit(train[cols], train[target].astype(int))
@@ -95,9 +103,10 @@ def fit(df: pd.DataFrame, target: str, groups: list[str], model: str = "grad_boo
 
 
 def run(df: pd.DataFrame, target: str, ablations: dict | None = None,
-        models: list[str] | None = None) -> pd.DataFrame:
+        models: list[str] | None = None, **split) -> pd.DataFrame:
+    """Baselines + every model x feature set. `split` goes to time_split (train_max_year, years)."""
     ablations = ablations or {**ABLATIONS, **LEAKAGE_CHECK}
-    train, test = time_split(df, target)
+    train, test = time_split(df, target, **split)
     y_tr, y_te = train[target].astype(int), test[target].astype(int)
     rows = [
         {"features": "-", "model": "majority", **scores(y_te, np.full(len(y_te), y_tr.mean()))},
@@ -111,7 +120,7 @@ def run(df: pd.DataFrame, target: str, ablations: dict | None = None,
             continue
         seen.add(tuple(cols))
         for mname in models or make_models():
-            _, _, t = fit(df, target, groups, mname)
+            _, _, t = fit(df, target, groups, mname, **split)
             rows.append({"features": name, "model": mname, **scores(t[target], t["pred"])})
     return pd.DataFrame(rows)
 
