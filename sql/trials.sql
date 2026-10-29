@@ -5,13 +5,7 @@
 -- LEAKAGE NOTE: columns prefixed with `post_` or `label_` are known only after the
 -- trial ends. They are kept for labels/EDA and must never be model features.
 
-WITH drug_trials AS (
-    SELECT DISTINCT nct_id
-    FROM interventions
-    WHERE UPPER(intervention_type) = 'DRUG'
-),
-
-base AS (
+WITH base AS (
     SELECT
         s.nct_id,
         UPPER(s.overall_status)            AS overall_status,
@@ -24,31 +18,36 @@ base AS (
         UPPER(s.enrollment_type)           AS post_enrollment_type,
         s.why_stopped                      AS post_why_stopped
     FROM studies s
-    JOIN drug_trials d USING (nct_id)
     WHERE UPPER(s.study_type) = 'INTERVENTIONAL'
       AND UPPER(s.overall_status) IN ('COMPLETED', 'TERMINATED', 'WITHDRAWN')
       AND CAST(s.start_date AS DATE) BETWEEN DATE '{start_min}' AND DATE '{start_max}'
+      AND EXISTS (SELECT 1 FROM interventions i
+                  WHERE i.nct_id = s.nct_id AND UPPER(i.intervention_type) = 'DRUG')
 ),
+
+-- Every aggregate below is restricted to the trials in `base` so it doesn't scan whole tables.
+ids AS (SELECT nct_id FROM base),
 
 lead_sponsor AS (
     SELECT nct_id,
            MAX(UPPER(agency_class)) AS lead_agency_class,
            MAX(name)                AS lead_sponsor_name
     FROM sponsors
-    WHERE LOWER(lead_or_collaborator) = 'lead'
+    WHERE nct_id IN (SELECT nct_id FROM ids) AND LOWER(lead_or_collaborator) = 'lead'
     GROUP BY nct_id
 ),
 
 collab AS (
     SELECT nct_id, COUNT(*) AS n_collaborators
     FROM sponsors
-    WHERE LOWER(lead_or_collaborator) = 'collaborator'
+    WHERE nct_id IN (SELECT nct_id FROM ids) AND LOWER(lead_or_collaborator) = 'collaborator'
     GROUP BY nct_id
 ),
 
 sites AS (
     SELECT nct_id, COUNT(*) AS n_sites
     FROM facilities
+    WHERE nct_id IN (SELECT nct_id FROM ids)
     GROUP BY nct_id
 ),
 
@@ -57,7 +56,8 @@ ctry AS (
            COUNT(DISTINCT name) AS n_countries,
            MAX(CASE WHEN name = 'United States' THEN 1 ELSE 0 END) AS has_us_site
     FROM countries
-    WHERE removed IS NULL OR CAST(removed AS VARCHAR) IN ('f', 'false', 'False')
+    WHERE nct_id IN (SELECT nct_id FROM ids)
+      AND (removed IS NULL OR CAST(removed AS VARCHAR) IN ('f', 'false', 'False'))
     GROUP BY nct_id
 ),
 
@@ -67,7 +67,7 @@ mesh AS (
            COUNT(DISTINCT mesh_term) AS n_mesh_terms,
            MIN(mesh_term)            AS mesh_term_first
     FROM browse_conditions
-    WHERE LOWER(mesh_type) IN ('mesh-list', 'mesh-ancestor')
+    WHERE nct_id IN (SELECT nct_id FROM ids) AND LOWER(mesh_type) IN ('mesh-list', 'mesh-ancestor')
     GROUP BY nct_id
 ),
 
@@ -76,7 +76,7 @@ n_drugs AS (
            COUNT(DISTINCT LOWER(name)) AS n_drug_interventions,
            MIN(name)                   AS first_drug_name
     FROM interventions
-    WHERE UPPER(intervention_type) = 'DRUG'
+    WHERE nct_id IN (SELECT nct_id FROM ids) AND UPPER(intervention_type) = 'DRUG'
     GROUP BY nct_id
 ),
 
@@ -87,7 +87,8 @@ primary_p AS (
            COUNT(*)        AS label_n_primary_analyses
     FROM outcomes o
     JOIN outcome_analyses oa ON oa.outcome_id = o.id
-    WHERE UPPER(o.outcome_type) = 'PRIMARY'
+    WHERE o.nct_id IN (SELECT nct_id FROM ids)
+      AND UPPER(o.outcome_type) = 'PRIMARY'
       AND oa.p_value IS NOT NULL
     GROUP BY o.nct_id
 )
