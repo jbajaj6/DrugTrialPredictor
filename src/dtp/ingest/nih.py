@@ -49,7 +49,9 @@ def load_links(path: Path = LINKS_CSV) -> pd.DataFrame:
 def _fetch_batch(core_nums: list[str]) -> list[dict]:
     rows, offset = [], 0
     while True:
-        body = {"criteria": {"project_nums": core_nums}, "include_fields": API_FIELDS,
+        # subprojects of center grants repeat the parent's money and can number in the thousands
+        body = {"criteria": {"project_nums": core_nums, "exclude_subprojects": True},
+                "include_fields": API_FIELDS,
                 "offset": offset, "limit": 500}
         r = requests.post(API_URL, json=body, timeout=120)
         r.raise_for_status()
