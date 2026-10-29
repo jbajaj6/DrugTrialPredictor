@@ -67,6 +67,8 @@ _BIOMARKER = re.compile(
     re.IGNORECASE,
 )
 _TRUTHY = {"t", "true", "yes", "1", "y"}
+# "not due to safety concerns", "no safety or efficacy issues", ... must not count as safety/efficacy
+_NEGATED = re.compile(r"\b(?:not|no|unrelated to|without|nor)\b[^.;]{0,60}(?:safety|efficacy|concerns?)")
 _AGE = re.compile(r"(\d+(?:\.\d+)?)\s*(year|month|week|day|hour|minute)", re.IGNORECASE)
 _AGE_UNIT_YEARS = {"year": 1, "month": 1 / 12, "week": 7 / 365, "day": 1 / 365,
                    "hour": 1 / 8760, "minute": 1 / 525600}
@@ -74,9 +76,12 @@ _AGE_UNIT_YEARS = {"year": 1, "month": 1 / 12, "week": 7 / 365, "day": 1 / 365,
 # why_stopped -> reason category (EDA only; known after the trial ends). First match wins.
 WHY_STOPPED = [
     ("safety", r"safety|toxicit|adverse|side effect|death|serious"),
-    ("efficacy", r"efficac|futil|lack of (?:benefit|effect|response)|interim analysis|ineffective|no benefit"),
-    ("enrollment", r"enrol|accru|recruit|participant|patients? (?:were|was) not|subjects?"),
-    ("business", r"sponsor|business|fund|financ|commercial|strateg|company|portfolio|priorit|budget|drug supply"),
+    ("efficacy", r"efficac|futil|lack of (?:benefit|effect|response)|interim analysis|ineffective|no benefit"
+                 r"|clinical activity|insufficient (?:activity|response)"),
+    ("enrollment", r"enrol|accru|recruit|participant|patients? (?:were|was) not|subjects?|inclusion"
+                   r"|sample size|patient availability|eligible patients"),
+    ("business", r"sponsor|business|fund|financ|commercial|strateg|company|portfolio|priorit|budget|drug supply"
+                 r"|manufactur|program|other indication|resource"),
     ("pi_or_site", r"\bpi\b|investigator|site|staff|left the institution|relocat"),
     ("regulatory", r"fda|regulat|irb|ethic|approval"),
 ]
@@ -105,7 +110,7 @@ def parse_age_years(s: str | float) -> float:
 def why_stopped_category(text: str | float) -> str | None:
     if not isinstance(text, str) or not text.strip():
         return None
-    low = text.lower()
+    low = _NEGATED.sub(" ", text.lower())
     for cat, pat in WHY_STOPPED:
         if re.search(pat, low):
             return cat
