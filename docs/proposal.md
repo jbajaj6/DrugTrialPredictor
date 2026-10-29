@@ -7,9 +7,9 @@ CIS 5450, Fall 2026. Due Oct 30, 11:59 PM EST on Gradescope. One person submits 
 | Member | Duties |
 | --- | --- |
 | Jai Bajaj | AACT ingestion, SQL joins, building one row per trial, cleaning |
-| _Name 2 (leosusser)_ | NIH RePORTER funding features; Target B (primary endpoint) labels |
-| _Name 3_ | Hype data (GDELT news, Wikipedia pageviews), drug-name matching with regex |
-| _Name 4_ | EDA, hypothesis tests, modeling and evaluation |
+| Leo Susser | NIH RePORTER funding features; Target B (primary endpoint) labels |
+| Giannis Bitounis | Hype data (GDELT news, Wikipedia pageviews), drug-name matching with regex |
+| Samuel Sosa Sanchez | EDA, hypothesis tests, modeling and evaluation |
 
 Everyone helps with the final notebook and presentation.
 
