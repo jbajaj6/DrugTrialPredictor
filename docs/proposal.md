@@ -55,7 +55,7 @@ Both targets are **binary classification**.
 
 ## 5. Hypothesis testing
 
-Both tests are permutation tests, using simulation as covered in class: shuffle group labels 10,000 times to build the null distribution and compute a two-sided p-value.
+All three tests are permutation tests, using simulation as covered in class: shuffle group labels 10,000 times to build the null distribution and compute a two-sided p-value.
 
 - **H1 (sponsor type).**
   - H0: completion rate is the same for industry-sponsored and academic-sponsored trials.
