@@ -181,6 +181,10 @@ python -m dtp.ingest.aact --source postgres
 # 2. Labels + design features  -> data/processed/trials.parquet
 python -m dtp.features
 
+# 2b. Optional joins (cached under data/raw/, resumable; rerun step 2 afterwards)
+python -m dtp.ingest.nih      # NIH grants linked to trials (~5 min)
+python -m dtp.ingest.hype     # Wikipedia pageviews per drug (~75 min, one request/second)
+
 # 3. Baselines, models, ablation -> data/processed/results_<target>.csv
 python -m dtp.models --target completed
 python -m dtp.models --target met_primary
@@ -197,9 +201,9 @@ jupyter lab notebooks/drug_trial_predictor.ipynb
 | `src/dtp/ingest/aact.py` | Runs the queries on AACT Postgres (~40 s) or on flat files via DuckDB | Working |
 | `src/dtp/features.py` | Labels, cohort filter, design + disease-area + eligibility features, sponsor track record, why-stopped categories | Working |
 | `src/dtp/models.py` | Time split, baselines, logistic / RF / gradient boosting, ablation, permutation importance, per-group AUC | Working |
-| `src/dtp/stats.py` | Permutation tests | H1 working; H2/H3 need hype/funding joins |
-| `src/dtp/ingest/nih.py` | NIH ExPORTER grant features, pre-start only | Written, untested on real files |
-| `src/dtp/ingest/hype.py` | Drug-name normalizer, Wikipedia pageviews; GDELT is a TODO | Partial |
+| `src/dtp/stats.py` | Permutation tests H1–H4 | Working (H2 needs the Wikipedia fetch) |
+| `src/dtp/ingest/nih.py` | ExPORTER grant-trial links + RePORTER API grant-years, pre-start only | Working |
+| `src/dtp/ingest/hype.py` | Drug-name normalizer, Wikipedia monthly pageviews per drug; GDELT is a TODO | Wikipedia working; GDELT not started |
 
 Anticipated enrollment is **not** a feature yet: AACT's `enrollment` is the final count (leaky), so it's kept as `post_enrollment_final` for EDA only.
 
@@ -212,11 +216,14 @@ Test set: trials that started 2016–2019 (trained on 2005–2015). ROC-AUC, bes
 | Phase + disease-area baseline | 0.62 | 0.64 |
 | Design | 0.66 | 0.73 |
 | Design + sponsor track record | **0.68** | 0.73 |
+| + NIH funding | 0.68 | — |
 | *+ site counts (leakage check, not a real model)* | *0.73* | — |
 
 - **Why trials stop:** about 34% for enrollment problems and 18% for business reasons; only 6% for efficacy and 4% for safety.
 - **Sponsor track record** is the strongest single signal for completion. Trials from sponsors in the worst-record quintile stop 2.6× as often as those in the best (33% vs 13%). It adds nothing for efficacy.
 - **H1:** industry trials complete 9 percentage points more often than academic ones (permutation p ≈ 1e-4).
+- **H3 / funding:** academic trials with an NIH grant complete 4 points more often (p ≈ 1e-4), but funding adds no predictive power once design and sponsor track record are in the model.
+- **Anticipated enrollment** can't be recovered: ClinicalTrials.gov's record-history endpoint isn't public (HTTP 403).
 
 ## Anticipated challenges
 

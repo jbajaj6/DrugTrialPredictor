@@ -76,7 +76,7 @@ mesh AS (
 n_drugs AS (
     SELECT nct_id,
            COUNT(DISTINCT LOWER(name)) AS n_drug_interventions,
-           MIN(name)                   AS first_drug_name
+           MIN(CASE WHEN LOWER(name) NOT LIKE '%placebo%' THEN name END) AS first_drug_name
     FROM interventions
     WHERE nct_id IN (SELECT nct_id FROM ids) AND UPPER(intervention_type) = 'DRUG'
     GROUP BY nct_id

@@ -27,11 +27,12 @@ def h1_sponsor(df: pd.DataFrame, **kw) -> dict:
 
 
 def h2_hype(df: pd.DataFrame, **kw) -> dict:
-    """H2: completion rate, top vs. bottom quartile of pre-start news volume (industry, 2015-2019)."""
-    d = df[(df["sponsor_class"] == "INDUSTRY") & (df["start_year"] >= 2015)].dropna(subset=["news_count"])
-    lo, hi = d["news_count"].quantile([0.25, 0.75])
-    d = d[(d["news_count"] <= lo) | (d["news_count"] >= hi)]
-    return permutation_test(d["completed"], d["news_count"] >= hi, **kw)
+    """H2: completion rate, top vs. bottom quartile of pre-start Wikipedia views of the drug
+    (industry trials starting 2016+ whose drug has an article)."""
+    d = df[(df["sponsor_class"] == "INDUSTRY") & (df["wiki_has_article"] == 1)]
+    lo, hi = d["wiki_views"].quantile([0.25, 0.75])
+    d = d[(d["wiki_views"] <= lo) | (d["wiki_views"] >= hi)]
+    return permutation_test(d["completed"], d["wiki_views"] >= hi, **kw)
 
 
 def h3_funding(df: pd.DataFrame, **kw) -> dict:
