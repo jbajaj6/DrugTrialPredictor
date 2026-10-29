@@ -1,7 +1,5 @@
 # DrugTrialPredictor
 
-CIS 5450 (Big Data Analytics) Final Project, Fall 2026
-
 > **Research question:** At the moment a drug trial is registered, can we predict whether it will finish and whether it will work? And do money (NIH grants), hype (news, Wikipedia), or an AI reading of the science tell us anything the trial design doesn't?
 
 ```mermaid
