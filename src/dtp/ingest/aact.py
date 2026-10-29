@@ -47,6 +47,9 @@ def from_postgres(sql: str | None = None) -> pd.DataFrame:
     engine = create_engine(url)
     with engine.connect() as conn:
         conn.execute(text("SET search_path TO ctgov"))
+        # Postgres badly underestimates rows after the UPPER() filters and picks nested loops
+        # that rerun each aggregate per trial (minutes per year). Hash joins: seconds.
+        conn.execute(text("SET enable_nestloop = off"))
         return pd.read_sql(text(sql or load_sql()), conn)
 
 
