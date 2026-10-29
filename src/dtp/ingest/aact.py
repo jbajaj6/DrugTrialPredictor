@@ -96,6 +96,13 @@ def main() -> None:
     print(f"wrote {len(df):,} trials -> {args.out}")
     print(df["overall_status"].value_counts().to_string())
 
+    if args.year is None and not args.combine:
+        sql = load_sql("sponsor_history.sql")
+        hist = from_postgres(sql) if args.source == "postgres" else from_flatfiles(args.dir, sql)
+        out = config.INTERIM / "sponsor_history.parquet"
+        hist.to_parquet(out, index=False)
+        print(f"wrote {len(hist):,} sponsor-history rows -> {out}")
+
 
 if __name__ == "__main__":
     main()

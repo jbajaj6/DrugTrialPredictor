@@ -1,4 +1,4 @@
-"""Baselines, models, and the feature-group ablation.
+"""Baselines, models, the feature-group ablation, and diagnostics.
 
     python -m dtp.models --target completed
     python -m dtp.models --target met_primary
@@ -12,6 +12,7 @@ import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.impute import SimpleImputer
+from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, f1_score, roc_auc_score
 from sklearn.pipeline import Pipeline, make_pipeline
@@ -20,13 +21,16 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from dtp import config
 from dtp.features import CATEGORICAL, FEATURE_GROUPS
 
+# Headline comparison: each outside signal added to the design features.
 ABLATIONS = {
     "design": ["design"],
-    "design+sites": ["design", "sites"],
-    "design+funding": ["design", "funding"],
-    "design+hype": ["design", "hype"],
-    "all": ["design", "sites", "funding", "hype"],
+    "design+sponsor_history": ["design", "sponsor_history"],
+    "design+sponsor_history+funding": ["design", "sponsor_history", "funding"],
+    "design+sponsor_history+hype": ["design", "sponsor_history", "hype"],
+    "all": ["design", "sponsor_history", "funding", "hype"],
 }
+# Not a candidate model: shows how much site counts (which change after start) would inflate results.
+LEAKAGE_CHECK = {"design+sponsor_history+sites (leaky)": ["design", "sponsor_history", "sites"]}
 
 
 def time_split(df: pd.DataFrame, target: str, train_max_year: int = config.TRAIN_MAX_YEAR):
@@ -53,16 +57,19 @@ def make_models(seed: int = 0) -> dict:
         "logistic": LogisticRegression(C=1.0, class_weight="balanced", max_iter=2000),
         "random_forest": RandomForestClassifier(
             n_estimators=300, min_samples_leaf=5, class_weight="balanced", n_jobs=-1, random_state=seed),
-        "grad_boost": HistGradientBoostingClassifier(class_weight="balanced", random_state=seed),
+        "grad_boost": HistGradientBoostingClassifier(
+            learning_rate=0.05, max_iter=400, class_weight="balanced", random_state=seed),
     }
 
 
 def scores(y, p, threshold: float = 0.5) -> dict:
+    y = np.asarray(y)
     return {
         "roc_auc": roc_auc_score(y, p),
         "pr_auc": average_precision_score(y, p),
-        # F1 on the minority (stopped / not met) class, which is what we care about flagging
-        "f1_minority": f1_score(1 - np.asarray(y), (np.asarray(p) < threshold).astype(int)),
+        # minority class = stopped (Q1) / not met (Q2), the outcome we want to flag
+        "pr_auc_minority": average_precision_score(1 - y, 1 - np.asarray(p)),
+        "f1_minority": f1_score(1 - y, (np.asarray(p) < threshold).astype(int)),
         "n_test": len(y),
     }
 
@@ -74,30 +81,57 @@ def phase_disease_baseline(train: pd.DataFrame, test: pd.DataFrame, target: str)
     by_cell = train.groupby(["phase", "disease_area"])[target].agg(["mean", "size"])
     by_cell = by_cell[by_cell["size"] >= 30]["mean"]
     keys = list(zip(test["phase"], test["disease_area"]))
-    return np.array([
-        by_cell.get(k, by_phase.get(k[0], overall)) for k in keys
-    ])
+    return np.array([by_cell.get(k, by_phase.get(k[0], overall)) for k in keys])
 
 
-def run(df: pd.DataFrame, target: str, ablations: dict = ABLATIONS) -> pd.DataFrame:
+def fit(df: pd.DataFrame, target: str, groups: list[str], model: str = "grad_boost"):
+    """Fit one model on the time split. Returns (pipeline, feature columns, test frame with `pred`)."""
+    train, test = time_split(df, target)
+    cols = feature_list(df, groups)
+    pipe = Pipeline([("prep", preprocessor(cols)), ("model", make_models()[model])])
+    pipe.fit(train[cols], train[target].astype(int))
+    test = test.assign(pred=pipe.predict_proba(test[cols])[:, 1])
+    return pipe, cols, test
+
+
+def run(df: pd.DataFrame, target: str, ablations: dict | None = None,
+        models: list[str] | None = None) -> pd.DataFrame:
+    ablations = ablations or {**ABLATIONS, **LEAKAGE_CHECK}
     train, test = time_split(df, target)
     y_tr, y_te = train[target].astype(int), test[target].astype(int)
     rows = [
         {"features": "-", "model": "majority", **scores(y_te, np.full(len(y_te), y_tr.mean()))},
-        {"features": "phase+disease", "model": "rate_lookup", **scores(y_te, phase_disease_baseline(train, test, target))},
+        {"features": "phase+disease", "model": "rate_lookup",
+         **scores(y_te, phase_disease_baseline(train, test, target))},
     ]
     seen = set()
     for name, groups in ablations.items():
         cols = feature_list(df, groups)
-        if tuple(cols) in seen:  # group not available yet -> identical to an earlier run
+        if tuple(cols) in seen:  # a group that isn't joined yet makes this identical to an earlier run
             continue
         seen.add(tuple(cols))
-        for mname, model in make_models().items():
-            pipe = Pipeline([("prep", preprocessor(cols)), ("model", model)])
-            pipe.fit(train[cols], y_tr)
-            p = pipe.predict_proba(test[cols])[:, 1]
-            rows.append({"features": name, "model": mname, **scores(y_te, p)})
+        for mname in models or make_models():
+            _, _, t = fit(df, target, groups, mname)
+            rows.append({"features": name, "model": mname, **scores(t[target], t["pred"])})
     return pd.DataFrame(rows)
+
+
+def importance(pipe, test: pd.DataFrame, cols: list[str], target: str,
+               n_rows: int = 8000, seed: int = 0) -> pd.Series:
+    """Permutation importance (drop in ROC-AUC when a column is shuffled) on a test-set sample."""
+    s = test.sample(min(n_rows, len(test)), random_state=seed)
+    r = permutation_importance(pipe, s[cols], s[target].astype(int), scoring="roc_auc",
+                               n_repeats=3, random_state=seed, n_jobs=-1)
+    return pd.Series(r.importances_mean, index=cols).sort_values(ascending=False)
+
+
+def auc_by_group(test: pd.DataFrame, target: str, group: str, min_n: int = 200) -> pd.DataFrame:
+    rows = []
+    for g, d in test.groupby(group):
+        if len(d) >= min_n and d[target].nunique() == 2:
+            rows.append({group: g, "n": len(d), "rate": d[target].mean(),
+                         "roc_auc": roc_auc_score(d[target].astype(int), d["pred"])})
+    return pd.DataFrame(rows).sort_values("n", ascending=False)
 
 
 def main() -> None:
