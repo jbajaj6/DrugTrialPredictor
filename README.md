@@ -188,20 +188,17 @@ python -m dtp.features
 python -m dtp.models --target completed
 python -m dtp.models --target met_primary
 
-# Smoke test on a fake AACT dump (no account needed)
-pytest
 ```
 
 | Path | What it does | Status |
 | --- | --- | --- |
-| `sql/trials.sql` | The one-row-per-trial query (filters, joins, Target B p-values) | Working |
-| `src/dtp/ingest/aact.py` | Runs the query on AACT Postgres or on flat files via DuckDB | Working |
-| `src/dtp/features.py` | Labels, design features, eligibility-text features, feature groups | Working |
-| `src/dtp/models.py` | Time split, majority + phase/disease baselines, logistic / RF / GBM, ablation | Working |
-| `src/dtp/stats.py` | Permutation tests H1–H3 | Working (H2/H3 need hype/funding joins) |
+| `sql/trials.sql` | The one-row-per-trial query (filters, joins, Target B p-values) | Not yet run on real data |
+| `src/dtp/ingest/aact.py` | Runs the query on AACT Postgres or on flat files via DuckDB | Not yet run on real data |
+| `src/dtp/features.py` | Labels, design features, eligibility-text features, feature groups | Not yet run on real data |
+| `src/dtp/models.py` | Time split, majority + phase/disease baselines, logistic / RF / GBM, ablation | Not yet run on real data |
+| `src/dtp/stats.py` | Permutation tests H1–H3 | Not yet run on real data (H2/H3 need hype/funding joins) |
 | `src/dtp/ingest/nih.py` | NIH ExPORTER grant features, pre-start only | Written, untested on real files |
 | `src/dtp/ingest/hype.py` | Drug-name normalizer, Wikipedia pageviews; GDELT is a TODO | Partial |
-| `tests/` | End-to-end test on a synthetic AACT dump | Passing |
 
 Anticipated enrollment is **not** a feature yet: AACT's `enrollment` is the final count (leaky), so it's kept as `post_enrollment_final` for EDA only.
 
