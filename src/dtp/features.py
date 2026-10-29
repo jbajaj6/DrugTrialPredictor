@@ -37,7 +37,7 @@ CATEGORICAL = [
     "primary_purpose", "disease_area", "elig_gender",
 ]
 DESIGN_NUMERIC = [
-    "phase_ord", "number_of_arms", "has_dmc", "n_collaborators", "start_year", "reg_lag_days",
+    "phase_ord", "number_of_arms", "has_dmc", "n_collaborators", "start_year",
     "n_mesh_terms", "n_conditions", "n_drug_interventions", "n_disease_areas",
     "n_primary_outcomes", "n_secondary_outcomes",
     "has_placebo_arm", "has_active_comparator", "has_no_intervention_arm",
@@ -47,6 +47,10 @@ DESIGN_NUMERIC = [
 SPONSOR_HISTORY = [
     "sponsor_prior_trials", "sponsor_prior_finished", "sponsor_prior_stop_rate", "sponsor_first_trial",
 ]
+# Not features: reg_lag_days (registration minus start) is used only for the cohort filter.
+# Withdrawn trials keep a *planned* start date that sponsors often push back before cancelling,
+# so the lag partly encodes postponements that happen after registration.
+
 # Can change after a trial starts (withdrawn trials often have no sites listed). Leakage check only.
 POST_START_RISKY = ["n_sites", "n_countries", "has_us_site"]
 
