@@ -15,7 +15,6 @@ import argparse
 import json
 import re
 import time
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import quote
 
@@ -31,6 +30,14 @@ WIKI_URL = ("https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/"
 HEADERS = {"User-Agent": "DrugTrialPredictor (https://github.com/jbajaj6/DrugTrialPredictor)"}
 WIKI_CACHE = config.RAW / "wiki"
 HYPE_MIN_YEAR = 2016
+REQUEST_INTERVAL = 1.0  # seconds between requests; Wikimedia rate-limits bursts with HTTP 429
+# Names worth looking up: one or two plain words, not arm descriptions or code names like ABC-123
+_PLAUSIBLE_TITLE = re.compile(r"[a-z][a-z\-]{3,}(?: [a-z][a-z\-]{3,})?")
+_NOT_A_DRUG = re.compile(r"group|dose|saline|standard|control|therapy|treatment|arm\b|water|usual|care")
+
+
+class RateLimited(RuntimeError):
+    pass
 
 _CODE_NAME = re.compile(r"^[A-Z]{1,5}-?\d{2,6}[A-Z]?$")
 
@@ -53,29 +60,35 @@ def normalize_drug_name(name: str | None) -> str | None:
 
 
 def wiki_title(drug: str | None) -> str | None:
-    """Normalized drug name -> English Wikipedia article title ('pembrolizumab' -> 'Pembrolizumab')."""
-    if not drug:
+    """Normalized drug name -> English Wikipedia article title ('pembrolizumab' -> 'Pembrolizumab').
+
+    None for names unlikely to have an article (code names, arm descriptions)."""
+    if not drug or not _PLAUSIBLE_TITLE.fullmatch(drug) or _NOT_A_DRUG.search(drug):
         return None
     return drug[0].upper() + drug[1:].replace(" ", "_")
 
 
 def _fetch_monthly(title: str) -> dict[str, int] | None:
     """{'2016-01': views, ...}; None if the article doesn't exist."""
-    for attempt in range(3):
+    for attempt in range(4):
+        time.sleep(REQUEST_INTERVAL)
         r = requests.get(WIKI_URL.format(article=quote(title, safe="")), headers=HEADERS, timeout=30)
         if r.status_code == 404:
             return None
         if r.status_code == 429:
-            time.sleep(2 ** attempt)
+            time.sleep(30 * (attempt + 1))
             continue
         r.raise_for_status()
         return {i["timestamp"][:4] + "-" + i["timestamp"][4:6]: i["views"] for i in r.json()["items"]}
-    return None
+    raise RateLimited(f"still rate-limited on {title!r}; wait a while and rerun to resume")
 
 
-def fetch_wiki(titles: list[str], cache: Path = WIKI_CACHE, batch: int = 200,
-               workers: int = 4, max_seconds: float | None = None) -> bool:
-    """Monthly pageviews per title, cached as one JSON file per batch. Returns True when done."""
+def fetch_wiki(titles: list[str], cache: Path = WIKI_CACHE, batch: int = 50,
+               max_seconds: float | None = None) -> bool:
+    """Monthly pageviews per title, one request at a time, cached as one JSON file per batch.
+
+    A batch is written only if every request in it succeeded, so a rate-limit stop never caches
+    a false 'no article'. Returns True when every batch is cached."""
     cache.mkdir(parents=True, exist_ok=True)
     t0, titles = time.time(), sorted(set(t for t in titles if t))
     for i in range(0, len(titles), batch):
@@ -85,8 +98,7 @@ def fetch_wiki(titles: list[str], cache: Path = WIKI_CACHE, batch: int = 200,
         if max_seconds and time.time() - t0 > max_seconds:
             return False
         chunk = titles[i:i + batch]
-        with ThreadPoolExecutor(workers) as ex:
-            f.write_text(json.dumps(dict(zip(chunk, ex.map(_fetch_monthly, chunk)))))
+        f.write_text(json.dumps({t: _fetch_monthly(t) for t in chunk}))
     return True
 
 
