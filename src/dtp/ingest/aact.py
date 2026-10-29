@@ -27,13 +27,16 @@ def load_sql(name: str = "trials.sql") -> str:
 
 def from_postgres(sql: str | None = None) -> pd.DataFrame:
     from dotenv import load_dotenv
-    from sqlalchemy import create_engine, text
+    from sqlalchemy import URL, create_engine, text
 
     load_dotenv(config.ROOT / ".env")
-    url = (
-        f"postgresql+psycopg2://{os.environ['AACT_USER']}:{os.environ['AACT_PASSWORD']}"
-        f"@{os.getenv('AACT_HOST', 'aact-db.ctti-clinicaltrials.org')}:{os.getenv('AACT_PORT', '5432')}"
-        f"/{os.getenv('AACT_DB', 'aact')}"
+    url = URL.create(  # escapes special characters in the password
+        "postgresql+psycopg2",
+        username=os.environ["AACT_USER"],
+        password=os.environ["AACT_PASSWORD"],
+        host=os.getenv("AACT_HOST", "aact-db.ctti-clinicaltrials.org"),
+        port=int(os.getenv("AACT_PORT", "5432")),
+        database=os.getenv("AACT_DB", "aact"),
     )
     engine = create_engine(url)
     with engine.connect() as conn:
