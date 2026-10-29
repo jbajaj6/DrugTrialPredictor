@@ -1,7 +1,5 @@
 # Project Proposal: DrugTrialPredictor
 
-CIS 5450, Fall 2026. Due Oct 30, 11:59 PM EST on Gradescope. One person submits and adds all teammates, and must re-add them after every resubmission.
-
 ## 1. Group members and duties
 
 | Member | Duties |
@@ -11,12 +9,10 @@ CIS 5450, Fall 2026. Due Oct 30, 11:59 PM EST on Gradescope. One person submits 
 | Giannis Bitounis | Hype data (GDELT news, Wikipedia pageviews), drug-name matching with regex |
 | Samuel Sosa Sanchez | EDA, hypothesis tests, modeling and evaluation |
 
-Everyone helps with the final notebook and presentation.
-
 ## 2. Data source
 
 - **Primary: AACT**, a free public relational copy of ClinicalTrials.gov maintained by CTTI (Duke/FDA). One row per interventional drug trial with a final status and a start date from 2005 through 2019.
-  - **Size:** about 95,700 trials (78,047 completed, 13,329 terminated, 4,342 withdrawn; ClinicalTrials.gov API, 10/27). This is well above 50,000 after cleaning.
+  - **Size:** about 95,700 trials (78,047 completed, 13,329 terminated, 4,342 withdrawn; ClinicalTrials.gov API, 10/27).
   - **Features (15+):** phase, anticipated enrollment, sponsor class, number of sites and countries, condition category (MeSH), allocation, masking, intervention model, number of arms, data monitoring committee, start year, number of collaborators.
 - **Joined sources (all free and public):**
   - NIH RePORTER: grants linked to trials by NCT ID.
@@ -77,4 +73,4 @@ All three tests are permutation tests, using simulation as covered in class: shu
 - **Leakage.** AACT overwrites anticipated enrollment with actual enrollment when a trial ends, so the original value has to come from record history, or the feature is dropped.
 - **Label noise.** Many terminations are for business or enrollment reasons rather than drug failure, which is why Target B exists.
 - **Class imbalance.** About 86% of trials complete.
-- **Stretch: AI science features.** Embeddings and an LLM reading of trial text and PubMed abstracts. This is extra NLP, so we treat it as optional and will confirm the scope with our TA.
+- **Stretch: AI science features.** Embeddings and an LLM reading of trial text and PubMed abstracts. Treated as optional.

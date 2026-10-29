@@ -113,7 +113,7 @@ Counts from the ClinicalTrials.gov API v2 on 2026-10-27: interventional trials w
 | **Target B pool** (before requiring a primary-outcome p-value) | **~38,800** |
 | Industry-sponsored, final status (hype subset pool) | 44,256 |
 
-Target A clears the 50,000-row requirement. Target B will shrink once filtered to trials with a primary-outcome p-value.
+Target B will shrink once filtered to trials with a primary-outcome p-value.
 
 ## Data sources
 
@@ -217,9 +217,8 @@ Anticipated enrollment is **not** a feature yet: AACT's `enrollment` is the fina
 | Milestone | Date |
 | --- | --- |
 | Proposal | Oct 30 |
-| Proposal check-in | Nov 2–6 |
-| Intermediate check-in (EDA + baseline done) | Nov 16–20 |
-| Final notebook, presentation, concept notebook | Dec 7 |
+| EDA + baseline done | Nov 20 |
+| Final analysis and write-up | Dec 7 |
 
 ## Team
 

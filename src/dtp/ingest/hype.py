@@ -19,7 +19,7 @@ WIKI_URL = (
     "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/"
     "en.wikipedia/all-access/user/{article}/daily/{start}/{end}"
 )
-HEADERS = {"User-Agent": "DrugTrialPredictor (CIS 5450 class project)"}
+HEADERS = {"User-Agent": "DrugTrialPredictor (https://github.com/jbajaj6/DrugTrialPredictor)"}
 
 _CODE_NAME = re.compile(r"^[A-Z]{1,5}-?\d{2,6}[A-Z]?$")
 

@@ -1,7 +1,7 @@
 [project]
 name = "dtp"
 version = "0.1.0"
-description = "DrugTrialPredictor - CIS 5450 final project"
+description = "Predict clinical drug trial outcomes at registration time"
 requires-python = ">=3.10"
 
 [build-system]
