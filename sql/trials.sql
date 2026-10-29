@@ -16,7 +16,9 @@ WITH base AS (
         s.has_dmc,
         s.enrollment                       AS post_enrollment_final,   -- overwritten with actual at end
         UPPER(s.enrollment_type)           AS post_enrollment_type,
-        s.why_stopped                      AS post_why_stopped
+        s.why_stopped                      AS post_why_stopped,
+        CAST(s.completion_date AS DATE)    AS post_completion_date,
+        UPPER(s.start_date_type)           AS post_start_date_type     -- ANTICIPATED => never started
     FROM studies s
     WHERE UPPER(s.study_type) = 'INTERVENTIONAL'
       AND UPPER(s.overall_status) IN ('COMPLETED', 'TERMINATED', 'WITHDRAWN')
@@ -62,10 +64,10 @@ ctry AS (
 ),
 
 mesh AS (
-    -- First MeSH ancestor term is a coarse disease-area label; refined in Python.
+    -- All MeSH terms incl. ancestors; top-level categories (e.g. 'Neoplasms') are mapped in Python.
     SELECT nct_id,
-           COUNT(DISTINCT mesh_term) AS n_mesh_terms,
-           MIN(mesh_term)            AS mesh_term_first
+           COUNT(DISTINCT mesh_term)              AS n_mesh_terms,
+           STRING_AGG(DISTINCT mesh_term, '|')    AS mesh_terms
     FROM browse_conditions
     WHERE nct_id IN (SELECT nct_id FROM ids) AND LOWER(mesh_type) IN ('mesh-list', 'mesh-ancestor')
     GROUP BY nct_id
@@ -77,6 +79,33 @@ n_drugs AS (
            MIN(name)                   AS first_drug_name
     FROM interventions
     WHERE nct_id IN (SELECT nct_id FROM ids) AND UPPER(intervention_type) = 'DRUG'
+    GROUP BY nct_id
+),
+
+conds AS (
+    SELECT nct_id, COUNT(*) AS n_conditions
+    FROM conditions
+    WHERE nct_id IN (SELECT nct_id FROM ids)
+    GROUP BY nct_id
+),
+
+planned_outcomes AS (
+    -- Outcomes declared in the protocol (known at registration), not posted results.
+    SELECT nct_id,
+           SUM(CASE WHEN LOWER(outcome_type) = 'primary'   THEN 1 ELSE 0 END) AS n_primary_outcomes,
+           SUM(CASE WHEN LOWER(outcome_type) = 'secondary' THEN 1 ELSE 0 END) AS n_secondary_outcomes
+    FROM design_outcomes
+    WHERE nct_id IN (SELECT nct_id FROM ids)
+    GROUP BY nct_id
+),
+
+arms AS (
+    SELECT nct_id,
+           MAX(CASE WHEN UPPER(group_type) = 'PLACEBO_COMPARATOR' THEN 1 ELSE 0 END) AS has_placebo_arm,
+           MAX(CASE WHEN UPPER(group_type) = 'ACTIVE_COMPARATOR'  THEN 1 ELSE 0 END) AS has_active_comparator,
+           MAX(CASE WHEN UPPER(group_type) = 'NO_INTERVENTION'    THEN 1 ELSE 0 END) AS has_no_intervention_arm
+    FROM design_groups
+    WHERE nct_id IN (SELECT nct_id FROM ids)
     GROUP BY nct_id
 ),
 
@@ -108,8 +137,16 @@ SELECT
     e.gender                             AS elig_gender,
     e.healthy_volunteers                 AS elig_healthy_volunteers,
     e.criteria                           AS elig_criteria,
+    e.minimum_age                        AS elig_min_age,
+    e.maximum_age                        AS elig_max_age,
     m.n_mesh_terms,
-    m.mesh_term_first,
+    m.mesh_terms,
+    COALESCE(cd.n_conditions, 0)         AS n_conditions,
+    po.n_primary_outcomes,
+    po.n_secondary_outcomes,
+    ar.has_placebo_arm,
+    ar.has_active_comparator,
+    ar.has_no_intervention_arm,
     nd.n_drug_interventions,
     nd.first_drug_name,
     pp.label_min_primary_p,
@@ -123,4 +160,7 @@ LEFT JOIN designs      d  ON d.nct_id  = b.nct_id
 LEFT JOIN eligibilities e ON e.nct_id  = b.nct_id
 LEFT JOIN mesh         m  ON m.nct_id  = b.nct_id
 LEFT JOIN n_drugs      nd ON nd.nct_id = b.nct_id
+LEFT JOIN conds        cd ON cd.nct_id = b.nct_id
+LEFT JOIN planned_outcomes po ON po.nct_id = b.nct_id
+LEFT JOIN arms         ar ON ar.nct_id = b.nct_id
 LEFT JOIN primary_p    pp ON pp.nct_id = b.nct_id

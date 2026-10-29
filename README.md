@@ -80,7 +80,7 @@ Predicting whether a clinical drug trial will succeed, using trial design data f
 
 ## Objective
 
-Roughly 1 in 7 drug trials that reach a final status is terminated or withdrawn. If we can predict at registration time which trials are likely to stop early, sponsors, funders, and patients get an early risk signal.
+Roughly 1 in 5 drug trials that reach a final status is terminated or withdrawn. If we can predict at registration time which trials are likely to stop early, sponsors, funders, and patients get an early risk signal.
 
 A trial that *finishes* is not the same as a drug that *works*: most terminations happen for operational reasons like slow enrollment, not because the drug failed (Williams et al. 2015). So we model both questions separately, then ask what kind of outside signal helps:
 
@@ -98,22 +98,19 @@ See [docs/related-work.md](docs/related-work.md) for prior work and how this pro
 - **Target B (Q2, binary):** `met_primary` = 1 if the primary outcome analysis reports p < 0.05, from AACT `outcome_analyses`. Only trials with posted results and a primary-outcome p-value are included. The HINT benchmark labels (Fu et al. 2022) are a fallback or cross-check.
 - **Stretch:** join Drugs@FDA to label FDA approval for the subset of trials we can match to an approved product.
 
+- **Cohort rule:** keep only trials registered no later than 90 days after their start date. About 15% of completed trials were registered more than a year after starting (often after finishing), vs. 3% of withdrawn ones, so late registration would let the model learn the outcome from the registration date.
+
 ### Row counts
 
-Counts from the ClinicalTrials.gov API v2 on 2026-10-27: interventional trials with at least one drug intervention, start date 2005-01-01 to 2019-12-31, before cleaning. Re-run on AACT for the final numbers.
+From AACT on 2026-10-29: interventional trials with at least one drug intervention, start date 2005-01-01 to 2019-12-31.
 
-| Group | Trials |
-| --- | --- |
-| Completed | 78,047 |
-| Terminated | 13,329 |
-| Withdrawn | 4,342 |
-| **Target A pool** | **~95,700** (about 14% stopped) |
-| Completed with posted results | 31,922 |
-| Terminated with posted results | 6,854 |
-| **Target B pool** (before requiring a primary-outcome p-value) | **~38,800** |
-| Industry-sponsored, final status (hype subset pool) | 44,256 |
-
-Target B will shrink once filtered to trials with a primary-outcome p-value.
+| Group | Raw pull | Cohort (registered ≤ 90 days after start) |
+| --- | --- | --- |
+| Completed | 78,053 | 58,552 |
+| Terminated | 13,331 | 11,354 |
+| Withdrawn | 4,342 | 3,936 |
+| **Target A** | **95,726** (18.5% stopped) | **73,842** (20.7% stopped) |
+| **Target B** (completed, primary-outcome p-value posted) | 10,274 | 9,030 |
 
 ## Data sources
 
@@ -148,7 +145,9 @@ All sources are free, public, and legal. None are synthetic.
 Every feature must be knowable at or before trial start:
 
 - Use **anticipated** enrollment, not actual. AACT overwrites `enrollment` with the actual count when a trial ends (withdrawn trials become 0), so the original anticipated value has to come from ClinicalTrials.gov record history, or the feature is dropped.
-- Site and country counts can change after a trial starts. Treat them with care and test the models with and without them.
+- **Site and country counts are excluded.** 34% of withdrawn trials list zero sites (vs. 4–7% of others), because sites get removed after the fact. Adding them inflates ROC-AUC by about 0.04; the model results keep this as a labeled leakage check only.
+- **Registration lag is not a feature** (only the cohort filter uses it). Withdrawn trials keep a *planned* start date that is often pushed back before cancellation, so the lag records postponements that happen after registration.
+- **Sponsor track record** counts only the sponsor's trials that started, or ended, before this trial's start date.
 - Exclude `why_stopped`, posted results, completion dates, and anything updated after the outcome, except when building labels.
 - Grant and hype features are measured only in a fixed window **before** the trial's start date. Coverage after a termination is announced would leak the answer.
 - AI science features use only text written before the trial start: PubMed papers dated before it, and the trial description as first posted (from record history where possible, since sponsors can edit it later).
@@ -186,19 +185,38 @@ python -m dtp.features
 python -m dtp.models --target completed
 python -m dtp.models --target met_primary
 
+# 4. Full analysis: EDA, hypothesis tests, models, diagnostics
+jupyter lab notebooks/drug_trial_predictor.ipynb
 ```
 
 | Path | What it does | Status |
 | --- | --- | --- |
-| `sql/trials.sql` | The one-row-per-trial query (filters, joins, Target B p-values) | Not yet run on real data |
-| `src/dtp/ingest/aact.py` | Runs the query on AACT Postgres or on flat files via DuckDB | Not yet run on real data |
-| `src/dtp/features.py` | Labels, design features, eligibility-text features, feature groups | Not yet run on real data |
-| `src/dtp/models.py` | Time split, majority + phase/disease baselines, logistic / RF / GBM, ablation | Not yet run on real data |
-| `src/dtp/stats.py` | Permutation tests H1–H3 | Not yet run on real data (H2/H3 need hype/funding joins) |
+| `notebooks/drug_trial_predictor.ipynb` | Main analysis: cohort, EDA (10 figures), hypothesis tests, models, diagnostics | Runs end to end |
+| `sql/trials.sql` | One row per trial from 13 AACT tables (design, arms, planned outcomes, MeSH, eligibility, Target B p-values) | Working |
+| `sql/sponsor_history.sql` | Every interventional trial + lead sponsor (~460k rows) for track-record features | Working |
+| `src/dtp/ingest/aact.py` | Runs the queries on AACT Postgres (~40 s) or on flat files via DuckDB | Working |
+| `src/dtp/features.py` | Labels, cohort filter, design + disease-area + eligibility features, sponsor track record, why-stopped categories | Working |
+| `src/dtp/models.py` | Time split, baselines, logistic / RF / gradient boosting, ablation, permutation importance, per-group AUC | Working |
+| `src/dtp/stats.py` | Permutation tests | H1 working; H2/H3 need hype/funding joins |
 | `src/dtp/ingest/nih.py` | NIH ExPORTER grant features, pre-start only | Written, untested on real files |
 | `src/dtp/ingest/hype.py` | Drug-name normalizer, Wikipedia pageviews; GDELT is a TODO | Partial |
 
 Anticipated enrollment is **not** a feature yet: AACT's `enrollment` is the final count (leaky), so it's kept as `post_enrollment_final` for EDA only.
+
+### Results so far
+
+Test set: trials that started 2016–2019 (trained on 2005–2015). ROC-AUC, best model per row:
+
+| Features | Q1: completed | Q2: met primary endpoint |
+| --- | --- | --- |
+| Phase + disease-area baseline | 0.62 | 0.64 |
+| Design | 0.66 | 0.73 |
+| Design + sponsor track record | **0.68** | 0.73 |
+| *+ site counts (leakage check, not a real model)* | *0.73* | — |
+
+- **Why trials stop:** about 34% for enrollment problems and 18% for business reasons; only 6% for efficacy and 4% for safety.
+- **Sponsor track record** is the strongest single signal for completion. Trials from sponsors in the worst-record quintile stop 2.6× as often as those in the best (33% vs 13%). It adds nothing for efficacy.
+- **H1:** industry trials complete 9 percentage points more often than academic ones (permutation p ≈ 1e-4).
 
 ## Anticipated challenges
 
@@ -209,7 +227,8 @@ Anticipated enrollment is **not** a feature yet: AACT's `enrollment` is the fina
 - **Anticipated enrollment.** AACT keeps only the final value; recovering the original may require record history for a sample.
 - **AI memorization.** An LLM may recognize famous trials and their results. The recall check and the embedding-only comparison guard against this.
 - **AI cost.** LLM calls on ~95k trials are expensive, so LLM extraction runs on a sample and embeddings cover the rest.
-- **Class imbalance.** About 86% of trials complete.
+- **Class imbalance.** About 79% of cohort trials complete.
+- **Censoring.** Stop rates rise from about 20% to 26% across 2016–2019 partly because unfinished long trials aren't in the data yet; the test years have a higher base rate than the training years.
 - **Time coverage.** GDELT and Wikipedia pageviews start around 2015, so hype features only exist for 2015–2019 trials.
 
 ## Milestones

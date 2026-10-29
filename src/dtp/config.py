@@ -12,6 +12,11 @@ SQL_DIR = ROOT / "sql"
 START_MIN = "2005-01-01"
 START_MAX = "2019-12-31"
 
+# Cohort: keep trials registered no later than this many days after their start date.
+# Trials registered long after they began (often after they finished) are almost always
+# "completed", so including them lets the model learn from the registration date itself.
+MAX_REG_LAG_DAYS = 90
+
 # Time-based split: train on early start years, test on later ones
 TRAIN_MAX_YEAR = 2015  # train: 2005-2015, test: 2016-2019
 
@@ -21,7 +26,7 @@ FINAL_STATUSES = ("COMPLETED", "TERMINATED", "WITHDRAWN")
 AACT_TABLES = [
     "studies", "designs", "sponsors", "facilities", "countries",
     "browse_conditions", "interventions", "eligibilities",
-    "outcomes", "outcome_analyses",
+    "outcomes", "outcome_analyses", "conditions", "design_outcomes", "design_groups",
 ]
 
 # Phase -> ordinal (AACT v2 uses PHASE1/PHASE2/...; older dumps use "Phase 1")
