@@ -1,4 +1,4 @@
-"""Permutation tests for H1-H3 (proposal section 5)."""
+"""Permutation tests for the hypotheses (H1-H3 from the proposal, H5 for the science features)."""
 from __future__ import annotations
 
 import numpy as np
@@ -39,3 +39,12 @@ def h3_funding(df: pd.DataFrame, **kw) -> dict:
     """H3: among academic trials, completion rate with vs. without a linked NIH grant."""
     d = df[df["sponsor_class"] == "ACADEMIC_OTHER"]
     return permutation_test(d["completed"], d["has_nih_grant"] == 1, **kw)
+
+
+def h5_prior_literature(df: pd.DataFrame, **kw) -> dict:
+    """H5: among completed trials with a primary p-value, met-primary rate for drugs in the top vs.
+    bottom quartile of PubMed papers published before the trial's start year (named drugs only)."""
+    d = df[df["met_primary"].notna() & df["pubmed_log_prior_papers"].notna()]
+    lo, hi = d["pubmed_log_prior_papers"].quantile([0.25, 0.75])
+    d = d[(d["pubmed_log_prior_papers"] <= lo) | (d["pubmed_log_prior_papers"] >= hi)]
+    return permutation_test(d["met_primary"], d["pubmed_log_prior_papers"] >= hi, **kw)
