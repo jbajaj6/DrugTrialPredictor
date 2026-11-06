@@ -51,6 +51,13 @@ SPONSOR_HISTORY = [
 # Withdrawn trials keep a *planned* start date that sponsors often push back before cancelling,
 # so the lag partly encodes postponements that happen after registration.
 
+# What was known about the drug at start (dtp.ingest.science, dtp.ingest.fda)
+SCIENCE_CATEGORICAL = ["chembl_action", "chembl_molecule_type"]
+SCIENCE = ["pubmed_log_prior_papers", "pubmed_has_prior", "chembl_has_mechanism", "chembl_n_targets",
+           "chembl_approved_before", "chembl_known_target", "fda_approved_before"] + SCIENCE_CATEGORICAL
+EMBEDDINGS = [f"emb_pc{i}" for i in range(1, 21)]
+ALL_CATEGORICAL = CATEGORICAL + SCIENCE_CATEGORICAL
+
 # Can change after a trial starts (withdrawn trials often have no sites listed). Leakage check only.
 POST_START_RISKY = ["n_sites", "n_countries", "has_us_site"]
 
@@ -63,11 +70,15 @@ FEATURE_GROUPS = {
     # reported by grantees after the fact, so the link itself may depend on the outcome)
     "funding": ["has_nih_grant", "nih_n_grants", "nih_log_award", "nih_grant_years",
                 "nih_has_r01", "nih_has_cooperative"],
-    # Wikipedia attention to the drug in the 6 months before start (2016+ trials only)
-    "hype": ["wiki_has_article", "wiki_views", "wiki_trend"],
+    # Wikipedia attention and GDELT news coverage of the drug in the 6 months before start (2016+ only)
+    "hype": ["wiki_has_article", "wiki_views", "wiki_trend", "gdelt_has_news", "gdelt_articles", "gdelt_tone"],
+    # prior literature (PubMed), mechanism (ChEMBL), prior FDA approval
+    "science": SCIENCE,
+    # PCA of PubMedBERT embeddings of the trial's title + brief summary
+    "text": EMBEDDINGS,
 }
 
-LABEL_COLS = ["completed", "withdrawn", "met_primary"]
+LABEL_COLS = ["completed", "withdrawn", "met_primary", "fda_new_approval"]
 
 _BIOMARKER = re.compile(
     r"\b(?:her2|egfr|alk|braf|kras|brca[12]?|pd-?l1|mutation|biomarker|genotyp\w*|"
@@ -233,12 +244,13 @@ def apply_cohort(df: pd.DataFrame, max_lag: int = config.MAX_REG_LAG_DAYS) -> pd
 
 
 def build(raw: pd.DataFrame, hist: pd.DataFrame | None = None, cohort: bool = True,
-          funding: pd.DataFrame | None = None, hype: pd.DataFrame | None = None) -> pd.DataFrame:
-    """funding / hype: per-trial frames keyed on nct_id from dtp.ingest.nih / dtp.ingest.hype."""
+          funding: pd.DataFrame | None = None, hype: pd.DataFrame | None = None,
+          extras: list[pd.DataFrame] | None = None) -> pd.DataFrame:
+    """funding / hype / extras: per-trial frames keyed on nct_id from the dtp.ingest modules."""
     df = add_design_features(add_labels(raw))
     if hist is not None:
         df = add_sponsor_history(df, hist)
-    for extra in (funding, hype):
+    for extra in (funding, hype, *(extras or [])):
         if extra is not None:
             df = df.merge(extra, on="nct_id", how="left")
     if cohort:
@@ -250,15 +262,29 @@ def main() -> None:
     raw = pd.read_parquet(config.INTERIM / "trials_raw.parquet")
     hist_path = config.INTERIM / "sponsor_history.parquet"
     hist = pd.read_parquet(hist_path) if hist_path.exists() else None
-    from dtp.ingest import hype, nih
+    from dtp.ingest import fda, hype, nih, science
 
     funding = wiki = None
     if nih.LINKS_CSV.exists() and any((nih.NIH_DIR / "api").glob("batch_*.json")):
         funding = nih.funding_features(raw, nih.load_links(), nih.load_grant_years())
     if any(hype.WIKI_CACHE.glob("batch_*.json")):
         wiki = hype.wiki_features(raw, hype.load_wiki())
-    df = build(raw, hist, funding=funding, hype=wiki)
-    print(f"joined: funding={'yes' if funding is not None else 'no'}, wikipedia={'yes' if wiki is not None else 'no'}")
+    extras = []
+    if (fda.FDA_DIR / "Products.txt").exists():
+        extras.append(fda.fda_features(raw))
+    if hype.GDELT_PATH.exists():
+        extras.append(hype.gdelt_features(raw))
+    sci = science.science_features(raw)
+    if sci.shape[1] > 1:
+        extras.append(sci)
+    df = build(raw, hist, funding=funding, hype=wiki, extras=extras)
+    if science.EMBED_PATH.exists():  # PCA fit on training-period trials only
+        df = df.merge(science.embedding_pcs(df.loc[df["start_year"] <= config.TRAIN_MAX_YEAR, "nct_id"]),
+                      on="nct_id", how="left")
+    joined = {"funding": funding is not None, "wikipedia": wiki is not None,
+              "gdelt": "gdelt_articles" in df, "fda": "fda_approved_before" in df, "pubmed": "pubmed_log_prior_papers" in df,
+              "chembl": "chembl_action" in df, "embeddings": "emb_pc1" in df}
+    print("joined: " + ", ".join(f"{k}={'yes' if v else 'no'}" for k, v in joined.items()))
     out = config.PROCESSED / "trials.parquet"
     df.to_parquet(out, index=False)
     print(f"cohort: {len(df):,} of {len(raw):,} trials registered <= {config.MAX_REG_LAG_DAYS} days after start")

@@ -19,13 +19,16 @@ from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from dtp import config
-from dtp.features import CATEGORICAL, FEATURE_GROUPS
+from dtp.features import ALL_CATEGORICAL, FEATURE_GROUPS
 
 # Headline comparison: each outside signal added to the design features.
 ABLATIONS = {
     "design": ["design"],
     "design+sponsor_history": ["design", "sponsor_history"],
     "design+sponsor_history+funding": ["design", "sponsor_history", "funding"],
+    "design+sponsor_history+science": ["design", "sponsor_history", "science"],
+    "design+sponsor_history+text": ["design", "sponsor_history", "text"],
+    "all (no hype)": ["design", "sponsor_history", "funding", "science", "text"],
 }
 # Hype data only exists for trials starting 2016+, so its comparison uses its own split.
 HYPE_SPLIT = {"years": (2016, 2019), "train_max_year": 2017}
@@ -52,8 +55,8 @@ def feature_list(df: pd.DataFrame, groups: list[str]) -> list[str]:
 
 
 def preprocessor(cols: list[str]) -> ColumnTransformer:
-    cat = [c for c in cols if c in CATEGORICAL]
-    num = [c for c in cols if c not in CATEGORICAL]
+    cat = [c for c in cols if c in ALL_CATEGORICAL]
+    num = [c for c in cols if c not in ALL_CATEGORICAL]
     return ColumnTransformer([
         ("num", make_pipeline(SimpleImputer(strategy="median", add_indicator=True), StandardScaler()), num),
         ("cat", OneHotEncoder(handle_unknown="infrequent_if_exist", min_frequency=20), cat),
