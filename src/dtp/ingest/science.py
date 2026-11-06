@@ -66,7 +66,7 @@ def _get(url: str, params: dict, tries: int = 4, **kw) -> requests.Response:
                 continue
             r.raise_for_status()
             return r
-        except requests.ConnectionError:
+        except (requests.ConnectionError, requests.Timeout):
             time.sleep(5 * (attempt + 1))
     raise RuntimeError(f"{url} kept failing; rerun to resume")
 
