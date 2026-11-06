@@ -134,6 +134,7 @@ def wiki_features(trials: pd.DataFrame, wiki: dict, months: int = WINDOW_MONTHS,
         if s.year < HYPE_MIN_YEAR:
             has.append(np.nan); views.append(np.nan); trend.append(np.nan)
             continue
+        title = title if isinstance(title, str) else None  # filtered-out names come back as NaN
         if title and title not in wiki:  # not fetched yet: unknown, not "no article"
             has.append(np.nan); views.append(np.nan); trend.append(np.nan)
             continue
