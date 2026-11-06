@@ -44,9 +44,9 @@ DESIGN_NUMERIC = [
     "elig_healthy_volunteers", "elig_min_age_yrs", "elig_max_age_yrs", "elig_pediatric",
     "elig_len", "elig_n_inclusion", "elig_n_exclusion", "elig_biomarker",
 ] + AREA_COLS
-SPONSOR_HISTORY = [
-    "sponsor_prior_trials", "sponsor_prior_finished", "sponsor_prior_stop_rate", "sponsor_first_trial",
-]
+# sponsor_prior_trials is computed but left out: it is almost a copy of sponsor_prior_finished
+# (Spearman rho = 0.98), and the redundant pair only splits importance between them.
+SPONSOR_HISTORY = ["sponsor_prior_finished", "sponsor_prior_stop_rate", "sponsor_first_trial"]
 # Not features: reg_lag_days (registration minus start) is used only for the cohort filter.
 # Withdrawn trials keep a *planned* start date that sponsors often push back before cancelling,
 # so the lag partly encodes postponements that happen after registration.
