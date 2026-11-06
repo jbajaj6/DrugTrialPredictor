@@ -80,14 +80,15 @@ class Winsorizer(BaseEstimator, TransformerMixin):
         return np.asarray(input_features, dtype=object)
 
 
-def preprocessor(cols: list[str]) -> ColumnTransformer:
+def preprocessor(cols: list[str], clip: bool = True) -> ColumnTransformer:
     """Numeric: clip outliers -> median-impute (+ missing flags) -> standardize. Categorical: one-hot.
     Everything is fit inside the model pipeline, i.e. on training rows only."""
     cat = [c for c in cols if c in ALL_CATEGORICAL]
     num = [c for c in cols if c not in ALL_CATEGORICAL]
+    num_steps = ([Winsorizer()] if clip else []) + [SimpleImputer(strategy="median", add_indicator=True),
+                                                     StandardScaler()]
     return ColumnTransformer([
-        ("num", make_pipeline(Winsorizer(), SimpleImputer(strategy="median", add_indicator=True),
-                              StandardScaler()), num),
+        ("num", make_pipeline(*num_steps), num),
         ("cat", OneHotEncoder(handle_unknown="infrequent_if_exist", min_frequency=20), cat),
     ])
 
