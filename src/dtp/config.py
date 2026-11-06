@@ -19,6 +19,9 @@ MAX_REG_LAG_DAYS = 90
 
 # Time-based split: train on early start years, test on later ones
 TRAIN_MAX_YEAR = 2015  # train: 2005-2015, test: 2016-2019
+# Model choices (hyperparameters, resampling) are made on a validation slice of the training years,
+# never on the test years: fit on 2005-2012, validate on 2013-2015.
+VAL_MIN_YEAR = 2013
 
 FINAL_STATUSES = ("COMPLETED", "TERMINATED", "WITHDRAWN")
 

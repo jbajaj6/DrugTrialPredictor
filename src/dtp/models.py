@@ -9,6 +9,7 @@ import argparse
 
 import numpy as np
 import pandas as pd
+from scipy.stats import loguniform, randint, uniform
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
@@ -16,6 +17,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, f1_score, roc_auc_score
+from sklearn.model_selection import PredefinedSplit, RandomizedSearchCV
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
@@ -153,6 +155,49 @@ def run(df: pd.DataFrame, target: str, ablations: dict | None = None,
             _, _, t = fit(df, target, groups, mname, **split)
             rows.append({"features": name, "model": mname, **scores(t[target], t["pred"])})
     return pd.DataFrame(rows)
+
+
+# ---- Hyperparameter tuning (validation split inside the training years) --------------------------
+
+PARAM_SPACE = {
+    "logistic": {"model__C": loguniform(1e-3, 1e1)},
+    "random_forest": {"model__n_estimators": randint(150, 400), "model__max_depth": [8, 12, 16, 24, None],
+                      "model__min_samples_leaf": randint(2, 40), "model__max_features": ["sqrt", 0.3, 0.5]},
+    "grad_boost": {"model__learning_rate": loguniform(0.02, 0.2), "model__max_iter": randint(150, 600),
+                   "model__max_leaf_nodes": randint(15, 63), "model__min_samples_leaf": randint(20, 200),
+                   "model__l2_regularization": uniform(0, 2)},
+}
+
+
+def validation_split(train: pd.DataFrame) -> PredefinedSplit:
+    """-1 = always in the fitting fold (start <= 2012), 0 = validation fold (2013-2015)."""
+    return PredefinedSplit(np.where(train["start_year"] >= config.VAL_MIN_YEAR, 0, -1))
+
+
+def tune(df: pd.DataFrame, target: str, groups: list[str], model: str, n_iter: int = 12,
+         seed: int = 0, **split) -> RandomizedSearchCV:
+    """Randomized search scored by validation ROC-AUC (fit 2005-2012, validate 2013-2015).
+
+    The best setting is then refit on all training years; the test years are never touched.
+    `return_train_score` keeps training AUC so over- and underfitting are visible."""
+    train, _ = time_split(df, target, **split)
+    cols = feature_list(df, groups)
+    pipe = Pipeline([("prep", preprocessor(cols)), ("model", make_models(seed)[model])])
+    search = RandomizedSearchCV(pipe, PARAM_SPACE[model], n_iter=n_iter, scoring="roc_auc",
+                                cv=validation_split(train), refit=True, random_state=seed,
+                                return_train_score=True, n_jobs=1)
+    search.fit(train[cols], train[target].astype(int))
+    search.feature_cols_ = cols
+    return search
+
+
+def search_table(search: RandomizedSearchCV) -> pd.DataFrame:
+    """One row per tried setting: parameters, training AUC, validation AUC, and the overfitting gap."""
+    r = pd.DataFrame(search.cv_results_)
+    params = r["params"].apply(pd.Series).rename(columns=lambda c: c.replace("model__", ""))
+    out = params.assign(train_auc=r["mean_train_score"], val_auc=r["mean_test_score"])
+    out["gap"] = out["train_auc"] - out["val_auc"]
+    return out.sort_values("val_auc", ascending=False).reset_index(drop=True)
 
 
 def importance(pipe, test: pd.DataFrame, cols: list[str], target: str,
