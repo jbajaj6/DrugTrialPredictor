@@ -9,6 +9,7 @@ import argparse
 
 import numpy as np
 import pandas as pd
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.impute import SimpleImputer
@@ -54,11 +55,37 @@ def feature_list(df: pd.DataFrame, groups: list[str]) -> list[str]:
     return [c for c in dict.fromkeys(cols) if c in df.columns]  # skip groups not joined yet
 
 
+class Winsorizer(BaseEstimator, TransformerMixin):
+    """Clip each numeric column to its [lower, upper] quantiles, learned on the training rows only.
+
+    Count features have long right tails (a few trials list 100+ secondary outcomes or conditions);
+    clipping keeps those rows but stops them from dominating the scaled inputs of linear models.
+    Missing values pass through untouched (the imputer handles them next)."""
+
+    def __init__(self, lower: float = 0.01, upper: float = 0.99):
+        self.lower, self.upper = lower, upper
+
+    def fit(self, X, y=None):
+        X = np.asarray(X, dtype=float)
+        self.lo_ = np.nanquantile(X, self.lower, axis=0)
+        self.hi_ = np.nanquantile(X, self.upper, axis=0)
+        return self
+
+    def transform(self, X):
+        return np.clip(np.asarray(X, dtype=float), self.lo_, self.hi_)
+
+    def get_feature_names_out(self, input_features=None):
+        return np.asarray(input_features, dtype=object)
+
+
 def preprocessor(cols: list[str]) -> ColumnTransformer:
+    """Numeric: clip outliers -> median-impute (+ missing flags) -> standardize. Categorical: one-hot.
+    Everything is fit inside the model pipeline, i.e. on training rows only."""
     cat = [c for c in cols if c in ALL_CATEGORICAL]
     num = [c for c in cols if c not in ALL_CATEGORICAL]
     return ColumnTransformer([
-        ("num", make_pipeline(SimpleImputer(strategy="median", add_indicator=True), StandardScaler()), num),
+        ("num", make_pipeline(Winsorizer(), SimpleImputer(strategy="median", add_indicator=True),
+                              StandardScaler()), num),
         ("cat", OneHotEncoder(handle_unknown="infrequent_if_exist", min_frequency=20), cat),
     ])
 
