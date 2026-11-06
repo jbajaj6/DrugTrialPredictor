@@ -28,7 +28,7 @@ flowchart LR
     subgraph LANE_B["AI science path"]
       direction TB
       TEXT["<b>1b. Science text</b><br/>trial description + PubMed<br/>+ ChEMBL, before start date"]
-      AI["<b>2b. AI science read</b><br/>embeddings for all trials<br/>LLM extraction on a sample"]
+      AI["<b>2b. AI science read</b><br/>PubMedBERT embeddings<br/>+ PubMed / ChEMBL / FDA features"]
       SCI["<b>3b. Science features</b><br/>mechanism · evidence · plausibility"]
       TEXT --> AI --> SCI
     end
@@ -120,7 +120,7 @@ All sources are free, public, and legal. None are synthetic.
 | --- | --- | --- |
 | [AACT](https://aact.ctti-clinicaltrials.org/) (ClinicalTrials.gov) | Core trial table: phase, design, sponsor, enrollment, sites, conditions, status, posted results | Free account; Postgres connection or static download |
 | [NIH RePORTER / ExPORTER](https://reporter.nih.gov/exporter) | NIH grants linked to the ClinicalTrials.gov trials they support (Clinical Studies file, joined on core project number): award amount, funding institute, activity code, PI history, abstracts | Bulk CSV download; no account |
-| [PubMed](https://pubmed.ncbi.nlm.nih.gov/) | Abstracts of papers about each drug published before the trial started, for the AI science read | Free NCBI E-utilities API |
+| [PubMed](https://pubmed.ncbi.nlm.nih.gov/) | Counts of papers about each drug published before the trial started | Free NCBI E-utilities API |
 | [ChEMBL](https://www.ebi.ac.uk/chembl/) | Drug targets, mechanism of action, and highest prior development phase | Bulk download or free REST API |
 | [Drugs@FDA](https://www.fda.gov/drugs/drug-approvals-and-databases/drugsfda-data-files) | Approval records for the stretch FDA label | Bulk download |
 | [GDELT 2.0](https://www.gdeltproject.org/) | Global news coverage counts and pre-computed tone per drug/sponsor over time (2015+) | Raw CSV files or Google BigQuery public dataset |
@@ -135,10 +135,13 @@ All sources are free, public, and legal. None are synthetic.
 
 **Hype (news / attention):** news article count and average tone in the window before trial start, Wikipedia page views for the drug and sponsor, attention trend (growth rate), and a `has_news` flag. GDELT tone is already computed, so no heavy NLP is needed.
 
-**Science (AI read):** an AI reads each trial's description together with PubMed abstracts and ChEMBL records dated before the trial start. Two layers:
+**Science (what was known about the drug at start):**
 
-- *Embeddings for every trial:* a biomedical language model (BioBERT or PubMedBERT) turns the text into vectors, reduced with PCA. Runs locally for free on all trials.
-- *LLM extraction on a sample of a few thousand trials:* an LLM fills in structured fields: mechanism of action class, new vs. known target, whether a successful earlier-phase trial is cited, number of supporting prior papers, surrogate vs. clinical endpoint, and a 1–5 scientific plausibility score. The LLM extracts facts; it is never asked to predict the outcome directly.
+- *Prior literature (PubMed):* number of papers mentioning the drug in their title or abstract, published before the trial's start year.
+- *Mechanism (ChEMBL):* action class (inhibitor, agonist, antagonist, binder, other), molecule type (small molecule, antibody, protein), number of targets, and whether any drug hitting the same target was already approved before the start year (known vs. new target).
+- *Prior approval (Drugs@FDA):* whether the drug was already FDA-approved when the trial started (repurposing vs. new drug).
+- *Text embeddings:* a PubMedBERT sentence model (`pritamdeka/S-PubMedBert-MS-MARCO`) embeds each trial's title and brief summary; PCA (fit on training years only) keeps 20 components. Runs locally on CPU for all trials.
+- *LLM extraction (not done):* the planned LLM reading of a sample of trials (plausibility score, surrogate vs. clinical endpoint) needs a paid API key, so it was dropped (next step in the notebook, section 6).
 
 ## Leakage rules
 
@@ -150,22 +153,24 @@ Every feature must be knowable at or before trial start:
 - **Sponsor track record** counts only the sponsor's trials that started, or ended, before this trial's start date.
 - Exclude `why_stopped`, posted results, completion dates, and anything updated after the outcome, except when building labels.
 - Grant and hype features are measured only in a fixed window **before** the trial's start date. Coverage after a termination is announced would leak the answer.
-- AI science features use only text written before the trial start: PubMed papers dated before it, and the trial description as first posted (from record history where possible, since sponsors can edit it later).
-- LLMs trained after 2019 may already know how a trial ended. We ask the LLM to recall the outcome for a sample of trials; if it often can, we flag those trials and lean on the embedding features instead.
+- Science features use only information dated before the trial start: PubMed papers from earlier years, FDA approvals before the start date, and "known target" only if a drug on that target was approved earlier. ChEMBL's current `max_phase` is excluded. Whether ChEMBL has curated a mechanism for a drug at all is partly retrospective, so the notebook refits without that flag as a leakage check.
+- Trial summaries come from the current record (sponsors can edit them after start; the first-posted version needs the non-public record history). This is a known, documented limitation of the text features.
+- Drugs@FDA approval *after* the trial started is a label for the stretch analysis, never a feature.
 
-## Planned pipeline
+## Pipeline
 
 1. **Ingest:** pull AACT tables (`studies`, `designs`, `sponsors`, `facilities`, `conditions`, `interventions`, `eligibilities`, `outcomes`, `outcome_analyses`) and the NIH ExPORTER projects and clinical studies files; save snapshots locally.
 2. **Wrangle and join:** build one row per trial with SQL joins and aggregations. Join NIH grants on NCT ID through the clinical studies link. Normalize drug names (regex) to match against GDELT, Wikipedia, and Drugs@FDA.
 3. **Hype join:** for each trial, aggregate news and page-view metrics over the pre-start window.
-4. **AI science read:** pull pre-start PubMed abstracts and ChEMBL records per drug, embed trial text and abstracts for all trials, and run LLM extraction on a sample.
+4. **AI science read:** count pre-start PubMed papers and pull ChEMBL mechanisms per drug, match Drugs@FDA approvals, and embed each trial's title and summary with PubMedBERT.
 5. **EDA:** termination rate by phase, sponsor type, disease area, and year; funding, hype, and science-feature distributions; each against outcome.
 6. **Modeling:** a phase + disease-area baseline, then logistic regression, then tree ensembles (random forest, gradient boosting). Handle class imbalance with class weights. Report ROC-AUC, PR-AUC, and F1. Ablation: design only vs. design + funding vs. design + hype vs. design + AI science vs. all.
 7. **Hypothesis tests (permutation):**
    - H1: termination rate differs between industry and academic sponsors.
    - H2: high-hype trials have a different success rate than low-hype trials (within the industry subset, to avoid confounding).
    - H3: NIH-funded trials have a different completion rate than comparable academic trials without NIH funding.
-   - H4: trials with a high LLM plausibility score meet their primary endpoint more often than trials with a low score.
+   - H4: trials from sponsors in the best and worst track-record quartiles complete at different rates.
+   - H5: completed trials of well-studied drugs (top quartile of prior PubMed papers) meet their primary endpoint at a different rate than little-studied ones (bottom quartile). Replaces the planned LLM-plausibility test.
 
 ## Running the code
 
@@ -184,6 +189,12 @@ python -m dtp.features
 # 2b. Optional joins (cached under data/raw/, resumable; rerun step 2 afterwards)
 python -m dtp.ingest.nih      # NIH grants linked to trials (~5 min)
 python -m dtp.ingest.hype     # Wikipedia pageviews per drug (~75 min, one request/second)
+python -m dtp.ingest.hype gdelt --project MY_GCP_PROJECT [--run]   # GDELT news via BigQuery (dry run by default)
+python -m dtp.ingest.fda      # Drugs@FDA bulk files (~10 s)
+python -m dtp.ingest.science text     # trial titles + summaries, ClinicalTrials.gov API (~3 min)
+python -m dtp.ingest.science chembl   # ChEMBL mechanisms + molecules (~5 min)
+python -m dtp.ingest.science pubmed   # prior-paper counts per (drug, start year) (~2 h at 3 requests/s)
+python -m dtp.ingest.science embed    # PubMedBERT embeddings of the summaries (~2 h on 2 CPUs)
 
 # 3. Baselines, models, ablation -> data/processed/results_<target>.csv
 python -m dtp.models --target completed
@@ -195,19 +206,21 @@ jupyter lab notebooks/drug_trial_predictor.ipynb
 
 | Path | What it does | Status |
 | --- | --- | --- |
-| `notebooks/drug_trial_predictor.ipynb` | Main analysis: cohort, EDA (10 figures), hypothesis tests, models, diagnostics | Runs end to end |
+| `notebooks/drug_trial_predictor.ipynb` | Main analysis: cohort, EDA, hypothesis tests H1–H5, models, Q4 science, FDA stretch | Runs end to end |
 | `sql/trials.sql` | One row per trial from 13 AACT tables (design, arms, planned outcomes, MeSH, eligibility, Target B p-values) | Working |
 | `sql/sponsor_history.sql` | Every interventional trial + lead sponsor (~460k rows) for track-record features | Working |
 | `src/dtp/ingest/aact.py` | Runs the queries on AACT Postgres (~40 s) or on flat files via DuckDB | Working |
 | `src/dtp/features.py` | Labels, cohort filter, design + disease-area + eligibility features, sponsor track record, why-stopped categories | Working |
-| `src/dtp/models.py` | Time split, baselines, logistic / RF / gradient boosting, ablation, permutation importance, per-group AUC | Working |
-| `src/dtp/stats.py` | Permutation tests H1–H4 | Working (H2 needs the Wikipedia fetch) |
+| `src/dtp/models.py` | Time split, baselines, logistic / RF / gradient boosting, ablation (design → + sponsor → + funding / science / text), permutation importance, per-group AUC | Working |
+| `src/dtp/stats.py` | Permutation tests H1–H3, H5 (H4 is in the notebook) | Working |
 | `src/dtp/ingest/nih.py` | ExPORTER grant-trial links + RePORTER API grant-years, pre-start only | Working |
-| `src/dtp/ingest/hype.py` | Drug-name normalizer, Wikipedia monthly pageviews per drug; GDELT is a TODO | Wikipedia working; GDELT not started |
+| `src/dtp/ingest/hype.py` | Drug-name normalizer, Wikipedia monthly pageviews per drug, GDELT news via BigQuery | Working |
+| `src/dtp/ingest/science.py` | ClinicalTrials.gov summaries, PubMed prior-paper counts, ChEMBL mechanisms, PubMedBERT embeddings | Working |
+| `src/dtp/ingest/fda.py` | Drugs@FDA: approved-before-start feature, later-approval stretch label | Working |
 
 Anticipated enrollment is **not** a feature yet: AACT's `enrollment` is the final count (leaky), so it's kept as `post_enrollment_final` for EDA only.
 
-### Results so far
+### Results
 
 Test set: trials that started 2016–2019 (trained on 2005–2015). ROC-AUC, best model per row:
 
@@ -216,24 +229,31 @@ Test set: trials that started 2016–2019 (trained on 2005–2015). ROC-AUC, bes
 | Phase + disease-area baseline | 0.62 | 0.64 |
 | Design | 0.66 | 0.73 |
 | Design + sponsor track record | **0.68** | 0.73 |
-| + NIH funding | 0.68 | — |
-| *+ site counts (leakage check, not a real model)* | *0.73* | — |
+| + NIH funding | 0.68 | 0.73 |
+| + science (PubMed, ChEMBL, Drugs@FDA) | 0.68 | 0.73 |
+| + text embeddings | 0.69 | 0.73 |
+| All of the above | 0.69 | 0.73 |
+| *+ site counts (leakage check, not a real model)* | *0.73* | *0.73* |
+| Hype split (train 2016–17, test 2018–19): design + sponsor → + Wikipedia + GDELT | 0.69 → 0.69 | — |
 
 - **Why trials stop:** about 34% for enrollment problems and 18% for business reasons; only 6% for efficacy and 4% for safety.
 - **Sponsor track record** is the strongest single signal for completion. Trials from sponsors in the worst-record quintile stop 2.6× as often as those in the best (33% vs 13%). It adds nothing for efficacy.
 - **H1:** industry trials complete 9 percentage points more often than academic ones (permutation p ≈ 1e-4).
 - **H3 / funding:** academic trials with an NIH grant complete 4 points more often (p ≈ 1e-4), but funding adds no predictive power once design and sponsor track record are in the model.
+- **H2 / hype:** no effect. Top vs. bottom quartile of pre-start Wikipedia views: +1.6 points (p ≈ 0.44); GDELT news volume: −0.5 points (p ≈ 0.85). Adding hype features moves ROC-AUC by ≤ 0.003.
+- **Q4 / science:** mostly no. Text embeddings lift Q2 logistic and gradient boosting by ≈ 0.01, but the best model (random forest) stays at ≈ 0.73. Structured science features add nothing measurable.
+- **H5:** completed trials of the most-studied drugs meet their endpoint 19 points *less* often (p ≈ 1e-4), largely because they are academic repurposing trials of old, already-approved drugs.
+- **Stretch / FDA approval:** 8.4% of trials of a named, not-yet-approved drug were followed by an FDA approval. In Phase 3, completed trials' drugs were approved twice as often as stopped ones (15.4% vs 7.5%), and trials that met their primary endpoint 20.5% vs 8.9% for those that missed.
 - **Anticipated enrollment** can't be recovered: ClinicalTrials.gov's record-history endpoint isn't public (HTTP 403).
 
 ## Anticipated challenges
 
 - **Sparse hype coverage.** Most academic trials get zero news. Hype features will mostly matter for industry trials of named drugs, so we will report results on that subset and include a `has_news` flag.
 - **Funding coverage.** NIH grant links cover academic and NIH-supported trials, not industry trials. Funding features apply to that subset, with a `has_nih_grant` flag.
-- **Entity matching.** Drug names vary (brand vs. generic vs. code names like `ABC-123`). Matching across sources needs regex cleanup and alias tables.
+- **Entity matching.** Drug names vary (brand vs. generic vs. code names like `ABC-123`), and many "drug" fields are arm descriptions. Matching uses regex cleanup and keeps only names found in ChEMBL or Drugs@FDA, so words like "local" don't match news.
 - **Termination isn't always failure.** Many trials stop for business or enrollment reasons, which is why Target B exists.
 - **Anticipated enrollment.** AACT keeps only the final value; recovering the original may require record history for a sample.
-- **AI memorization.** An LLM may recognize famous trials and their results. The recall check and the embedding-only comparison guard against this.
-- **AI cost.** LLM calls on ~95k trials are expensive, so LLM extraction runs on a sample and embeddings cover the rest.
+- **AI cost.** LLM extraction needs a paid API, so the science track uses free sources (PubMed, ChEMBL, Drugs@FDA) and local embeddings instead.
 - **Class imbalance.** About 79% of cohort trials complete.
 - **Censoring.** Stop rates rise from about 20% to 26% across 2016–2019 partly because unfinished long trials aren't in the data yet; the test years have a higher base rate than the training years.
 - **Time coverage.** GDELT and Wikipedia pageviews start around 2015, so hype features only exist for 2015–2019 trials.
@@ -242,16 +262,15 @@ Test set: trials that started 2016–2019 (trained on 2005–2015). ROC-AUC, bes
 
 | Milestone | Date |
 | --- | --- |
-| Proposal | Oct 30 |
-| EDA + baseline done | Nov 20 |
+| Proposal | Oct 30 (done) |
+| EDA + baseline done | Nov 20 (done) |
 | Final analysis and write-up | Dec 7 |
 
 ## Team
 
 | Member | Responsibilities |
 | --- | --- |
-| TBD | Data ingestion (AACT) and joins |
-| TBD | Funding (NIH RePORTER) and hype data (GDELT, Wikipedia), entity matching |
-| TBD | AI science read (PubMed, ChEMBL, embeddings, LLM extraction) |
-| TBD | EDA and hypothesis testing |
-| TBD | Modeling and evaluation |
+| Jai Bajaj | AACT ingestion, SQL joins, building one row per trial, cleaning |
+| Leo Susser | NIH RePORTER funding features; Target B (primary endpoint) labels |
+| Giannis Bitounis | Hype data (GDELT news, Wikipedia pageviews), drug-name matching with regex |
+| Samuel Sosa Sanchez | EDA, hypothesis tests, modeling and evaluation |
