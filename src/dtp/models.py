@@ -200,6 +200,76 @@ def search_table(search: RandomizedSearchCV) -> pd.DataFrame:
     return out.sort_values("val_auc", ascending=False).reset_index(drop=True)
 
 
+# ---- Class imbalance: weighting vs. resampling ---------------------------------------------------
+
+def imbalance_comparison(df: pd.DataFrame, target: str, groups: list[str],
+                         model: str = "grad_boost", seed: int = 0) -> pd.DataFrame:
+    """Compare no adjustment, class weights, random under- and oversampling, and SMOTE on the
+    validation years. Resampling sits inside the pipeline, so only training rows are resampled."""
+    from imblearn.over_sampling import RandomOverSampler, SMOTE
+    from imblearn.pipeline import Pipeline as ImbPipeline
+    from imblearn.under_sampling import RandomUnderSampler
+
+    train, _ = time_split(df, target)
+    fit_rows, val_rows = train[train["start_year"] < config.VAL_MIN_YEAR], train[train["start_year"] >= config.VAL_MIN_YEAR]
+    cols = feature_list(df, groups)
+    strategies = {
+        "none": None, "class weights": "weights",
+        "random undersampling": RandomUnderSampler(random_state=seed),
+        "random oversampling": RandomOverSampler(random_state=seed),
+        "SMOTE (after encoding)": SMOTE(random_state=seed),
+    }
+    rows = []
+    for name, sampler in strategies.items():
+        est = make_models(seed)[model]
+        if sampler != "weights":
+            est.set_params(class_weight=None)
+        steps = [("prep", preprocessor(cols))] + ([("sample", sampler)] if sampler not in (None, "weights") else [])
+        pipe = ImbPipeline(steps + [("model", est)])
+        pipe.fit(fit_rows[cols], fit_rows[target].astype(int))
+        p = pipe.predict_proba(val_rows[cols])[:, 1]
+        rows.append({"strategy": name, **scores(val_rows[target].astype(int), p)})
+    return pd.DataFrame(rows)
+
+
+# ---- Uncertainty: bootstrap confidence intervals -------------------------------------------------
+
+def bootstrap_auc(y, p, n_boot: int = 1000, seed: int = 0) -> dict:
+    """ROC-AUC with a 95% percentile bootstrap interval (resampling test trials with replacement)."""
+    y, p = np.asarray(y), np.asarray(p)
+    rng = np.random.default_rng(seed)
+    stats = []
+    for _ in range(n_boot):
+        i = rng.integers(0, len(y), len(y))
+        if y[i].min() != y[i].max():
+            stats.append(roc_auc_score(y[i], p[i]))
+    lo, hi = np.percentile(stats, [2.5, 97.5])
+    return {"roc_auc": roc_auc_score(y, p), "ci_low": lo, "ci_high": hi}
+
+
+def paired_bootstrap_diff(y, p_a, p_b, n_boot: int = 1000, seed: int = 0) -> dict:
+    """AUC(b) - AUC(a) on the same test trials, with a 95% bootstrap interval and the share of
+    resamples where b does not beat a (a one-sided bootstrap p-value)."""
+    y, p_a, p_b = map(np.asarray, (y, p_a, p_b))
+    rng = np.random.default_rng(seed)
+    d = []
+    for _ in range(n_boot):
+        i = rng.integers(0, len(y), len(y))
+        if y[i].min() != y[i].max():
+            d.append(roc_auc_score(y[i], p_b[i]) - roc_auc_score(y[i], p_a[i]))
+    d = np.array(d)
+    return {"diff": roc_auc_score(y, p_b) - roc_auc_score(y, p_a), "ci_low": np.percentile(d, 2.5),
+            "ci_high": np.percentile(d, 97.5), "p_not_better": (d <= 0).mean()}
+
+
+def logistic_coefficients(pipe: Pipeline) -> pd.Series:
+    """Standardized coefficients of a fitted logistic pipeline, by encoded feature name.
+    Positive = higher odds of the positive class (completed / met primary)."""
+    names = pipe.named_steps["prep"].get_feature_names_out()
+    coef = pipe.named_steps["model"].coef_.ravel()
+    return pd.Series(coef, index=[n.split("__", 1)[1] for n in names]).sort_values()
+
+
 def importance(pipe, test: pd.DataFrame, cols: list[str], target: str,
                n_rows: int = 8000, seed: int = 0) -> pd.Series:
     """Permutation importance (drop in ROC-AUC when a column is shuffled) on a test-set sample."""
