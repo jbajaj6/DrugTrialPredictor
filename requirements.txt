@@ -10,3 +10,4 @@ matplotlib>=3.8
 seaborn>=0.13
 python-dotenv>=1.0
 pytest>=8
+sentence-transformers>=3.0   # only for the text embeddings
