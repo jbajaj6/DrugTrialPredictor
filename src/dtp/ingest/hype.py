@@ -113,8 +113,12 @@ def load_wiki(cache: Path = WIKI_CACHE) -> dict[str, dict[str, int] | None]:
     return out
 
 
-def wiki_features(trials: pd.DataFrame, wiki: dict, months: int = WINDOW_MONTHS) -> pd.DataFrame:
+def wiki_features(trials: pd.DataFrame, wiki: dict, months: int = WINDOW_MONTHS,
+                  known: set[str] | None = None) -> pd.DataFrame:
     """Per-trial Wikipedia attention for the drug over the `months` full months before start.
+
+    known: lower-case names of real drugs (dtp.ingest.science.known_drug_names). Names outside it
+    ("local", "standard", "intervention") are treated as having no drug article.
 
     wiki_has_article: the drug has an English Wikipedia article (NaN before 2016: no data)
     wiki_views:       total views in the window (log1p)
@@ -123,6 +127,8 @@ def wiki_features(trials: pd.DataFrame, wiki: dict, months: int = WINDOW_MONTHS)
     t = trials[["nct_id", "start_date", "first_drug_name"]].copy()
     start = pd.to_datetime(t["start_date"])
     t["title"] = t["first_drug_name"].map(normalize_drug_name).map(wiki_title)
+    if known is not None:
+        t["title"] = t["title"].where(t["title"].fillna("").str.replace("_", " ").str.lower().isin(known))
     has, views, trend = [], [], []
     for title, s in zip(t["title"], start):
         if s.year < HYPE_MIN_YEAR:
@@ -181,14 +187,17 @@ def fetch_gdelt(names: list[str], project: str, run: bool = False) -> int:
 
 
 def gdelt_features(trials: pd.DataFrame, monthly: pd.DataFrame | None = None,
-                   months: int = WINDOW_MONTHS) -> pd.DataFrame:
+                   months: int = WINDOW_MONTHS, known: set[str] | None = None) -> pd.DataFrame:
     """Per-trial news coverage of the drug over the `months` full months before start (2016+ only).
 
     gdelt_has_news: any article in the window; gdelt_articles: log1p article count;
-    gdelt_tone: mean GDELT tone of those articles (NaN without news). Code and multi-word names: NaN."""
+    gdelt_tone: mean GDELT tone of those articles (NaN without news). Code and multi-word names: NaN.
+    known: lower-case names of real drugs; common words that match news URLs ("local", "impact") get NaN."""
     m = pd.read_parquet(GDELT_PATH) if monthly is None else monthly
     counts = {(d, mo): (n, tone) for d, mo, n, tone in m[["drug", "month", "n_articles", "mean_tone"]].itertuples(index=False)}
     names = set(gdelt_names(trials))
+    if known is not None:
+        names &= known
     t = trials[["nct_id", "start_date", "first_drug_name"]].copy()
     t["drug"] = t["first_drug_name"].map(normalize_drug_name).map(wiki_title).str.lower()
     has, arts, tone = [], [], []

@@ -203,6 +203,19 @@ def chembl_table(cache: Path = CHEMBL_CACHE) -> pd.DataFrame:
     return names.drop_duplicates("drug").reset_index(drop=True)
 
 
+def known_drug_names() -> set[str]:
+    """Lower-case names of real drugs: ChEMBL names/synonyms plus Drugs@FDA ingredients.
+
+    Used to drop arm descriptions and common words ("local", "standard") before matching drug
+    names against Wikipedia and news URLs."""
+    from dtp.ingest import fda
+
+    names = set(chembl_table()["drug"]) if (CHEMBL_CACHE / "molecules.json").exists() else set()
+    if (fda.FDA_DIR / "Products.txt").exists():
+        names |= set(fda.approvals()["key"])
+    return names
+
+
 # ---- Embeddings --------------------------------------------------------------------------------
 
 def trial_text(text: pd.DataFrame) -> pd.Series:

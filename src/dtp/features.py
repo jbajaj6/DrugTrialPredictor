@@ -265,15 +265,16 @@ def main() -> None:
     from dtp.ingest import fda, hype, nih, science
 
     funding = wiki = None
+    known = science.known_drug_names() or None  # real drug names, to keep common words out of hype matches
     if nih.LINKS_CSV.exists() and any((nih.NIH_DIR / "api").glob("batch_*.json")):
         funding = nih.funding_features(raw, nih.load_links(), nih.load_grant_years())
     if any(hype.WIKI_CACHE.glob("batch_*.json")):
-        wiki = hype.wiki_features(raw, hype.load_wiki())
+        wiki = hype.wiki_features(raw, hype.load_wiki(), known=known)
     extras = []
     if (fda.FDA_DIR / "Products.txt").exists():
         extras.append(fda.fda_features(raw))
     if hype.GDELT_PATH.exists():
-        extras.append(hype.gdelt_features(raw))
+        extras.append(hype.gdelt_features(raw, known=known))
     sci = science.science_features(raw)
     if sci.shape[1] > 1:
         extras.append(sci)
