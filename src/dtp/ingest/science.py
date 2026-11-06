@@ -224,19 +224,21 @@ def trial_text(text: pd.DataFrame) -> pd.Series:
 
 def embed(text: pd.DataFrame, model_name: str = EMBED_MODEL, batch_size: int = 64) -> None:
     """Sentence embeddings of title + brief summary (first 128 tokens), saved in chunks."""
-    from sentence_transformers import SentenceTransformer
-
-    model = SentenceTransformer(model_name, device="cpu")
-    model.max_seq_length = 128
     docs = trial_text(text).tolist()
     parts_dir = config.INTERIM / "embed_parts"
     parts_dir.mkdir(exist_ok=True)
-    step = 5000
+    step, model = 5000, None
     for i in range(0, len(docs), step):
         f = parts_dir / f"part_{i // step:03d}.npy"
-        if not f.exists():
-            np.save(f, model.encode(docs[i:i + step], batch_size=batch_size,
-                                    normalize_embeddings=True).astype(np.float32))
+        if f.exists():
+            continue
+        if model is None:  # only load the model if some chunk still needs encoding
+            from sentence_transformers import SentenceTransformer
+
+            model = SentenceTransformer(model_name, device="cpu")
+            model.max_seq_length = 128
+        np.save(f, model.encode(docs[i:i + step], batch_size=batch_size,
+                                normalize_embeddings=True).astype(np.float32))
     np.save(EMBED_PATH, np.vstack([np.load(f) for f in sorted(parts_dir.glob("part_*.npy"))]))
     text[["nct_id"]].to_parquet(EMBED_IDS, index=False)
 
