@@ -48,3 +48,12 @@ def h5_prior_literature(df: pd.DataFrame, **kw) -> dict:
     lo, hi = d["pubmed_log_prior_papers"].quantile([0.25, 0.75])
     d = d[(d["pubmed_log_prior_papers"] <= lo) | (d["pubmed_log_prior_papers"] >= hi)]
     return permutation_test(d["met_primary"], d["pubmed_log_prior_papers"] >= hi, **kw)
+
+
+def h2_news(df: pd.DataFrame, **kw) -> dict:
+    """H2 (news version): completion rate, top vs. bottom quartile of pre-start GDELT article
+    counts (industry trials starting 2016+ whose drug had any news)."""
+    d = df[(df["sponsor_class"] == "INDUSTRY") & (df["gdelt_has_news"] == 1)]
+    lo, hi = d["gdelt_articles"].quantile([0.25, 0.75])
+    d = d[(d["gdelt_articles"] <= lo) | (d["gdelt_articles"] >= hi)]
+    return permutation_test(d["completed"], d["gdelt_articles"] >= hi, **kw)
