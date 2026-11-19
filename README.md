@@ -277,7 +277,7 @@ Tuning changes test ROC-AUC by less than 0.005, except Q2 gradient boosting (+0.
 | --- | --- |
 | Proposal | Oct 30 (done) |
 | EDA + baseline done | Nov 20 (done) |
-| Final analysis and write-up | Dec 7 |
+| Final analysis and write-up ([report](docs/report.md)) | Dec 7 (draft done) |
 
 ## Team
 
