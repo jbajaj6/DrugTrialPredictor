@@ -11,6 +11,7 @@ from phase_by_phase.clean import (
 
 
 def test_phase_normalization_and_ordering():
+    assert normalize_phase("EARLY_PHASE1") == "EARLY_PHASE1"
     assert normalize_phase("Phase 1") == "PHASE1"
     assert normalize_phase("PHASE1/PHASE2") == "PHASE1/PHASE2"
     assert normalize_phase("Phase 2 / Phase 3") == "PHASE2/PHASE3"

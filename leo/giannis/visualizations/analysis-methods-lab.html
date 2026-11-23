@@ -1,0 +1,48 @@
+<section id="dtp-analysis-lab" data-viz-composition>
+<style>
+#dtp-analysis-lab{display:grid;gap:calc(var(--font-size-base)*1);width:100%;min-width:0}
+#dtp-analysis-lab [hidden]{display:none}
+</style>
+<div class="viz-controls"><label class="form-label" for="dtp-analysis-select">Explore an analysis
+<select id="dtp-analysis-select" class="form-select" disabled>
+<option value="sigmoid">Logistic regression mechanism · illustration</option>
+<option value="calibration">Probability calibration · illustration</option>
+<option value="cohort">Available snapshot counts · real data</option>
+</select></label></div>
+<div data-viz-container></div>
+<div id="dtp-analysis-status" class="text-small" aria-live="polite">Teaching curves are separate from actual project results.</div>
+<div id="dtp-analysis-counts" hidden><h3>Exact values and denominators</h3>
+<div class="table-responsive"><table class="table table-sm"><thead><tr id="dtp-analysis-head"></tr></thead><tbody id="dtp-analysis-body"></tbody></table></div></div>
+<script type="application/json" data-viz-chart data-key="sigmoid">{"id":"dtp-sigmoid","title":"Illustrative logistic curve — not a fitted project model","description":"Input is a mathematical score z; output is sigmoid(z). No drug-specific coefficients were fitted.","height":290,"spec":{"type":"line","x":"Score z","y":"Probability","xScale":"linear","xDomain":[-6,6],"yDomain":[0,1],"xLabel":"Illustrative linear score z","yLabel":"Probability","valueFormat":{"style":"percent","maximumFractionDigits":1}},"columns":["Score z","Probability"],"rows":[[-6,0.0024726231566347743],[-5.75,0.0031726828424851893],[-5.5,0.004070137715896128],[-5.25,0.005220125693558397],[-5,0.0066928509242848554],[-4.75,0.008577485413711984],[-4.5,0.01098694263059318],[-4.25,0.014063627043245475],[-4,0.01798620996209156],[-3.75,0.022977369910025615],[-3.5,0.02931223075135632],[-3.25,0.03732688734412946],[-3,0.04742587317756678],[-2.75,0.060086650174007626],[-2.5,0.07585818002124355],[-2.25,0.09534946489910949],[-2,0.11920292202211755],[-1.75,0.14804719803168948],[-1.5,0.18242552380635635],[-1.25,0.22270013882530884],[-1,0.2689414213699951],[-0.75,0.320821300824607],[-0.5,0.3775406687981454],[-0.25,0.43782349911420193],[0,0.5],[0.25,0.5621765008857981],[0.5,0.6224593312018546],[0.75,0.679178699175393],[1,0.7310585786300049],[1.25,0.7772998611746911],[1.5,0.8175744761936437],[1.75,0.8519528019683106],[2,0.8807970779778823],[2.25,0.9046505351008906],[2.5,0.9241418199787566],[2.75,0.9399133498259924],[3,0.9525741268224334],[3.25,0.9626731126558706],[3.5,0.9706877692486436],[3.75,0.9770226300899744],[4,0.9820137900379085],[4.25,0.9859363729567544],[4.5,0.9890130573694068],[4.75,0.991422514586288],[5,0.9933071490757153],[5.25,0.9947798743064417],[5.5,0.995929862284104],[5.75,0.9968273171575148],[6,0.9975273768433653]]}</script>
+<script type="application/json" data-viz-chart data-key="calibration">{"id":"dtp-calibration","title":"Illustrative calibration — predicted is not necessarily observed","description":"Toy groups of 20 examples at predictions 20%, 50% and 80%; observed events are 1, 5 and 11. These are not project results.","height":290,"spec":{"type":"line","x":"Predicted","y":["Ideal calibration","Toy observed"],"xScale":"linear","xDomain":[0,1],"yDomain":[0,1],"xLabel":"Predicted probability (fraction)","yLabel":"Observed event fraction","showLegend":true,"valueFormat":{"style":"percent","maximumFractionDigits":1}},"columns":["Predicted","Ideal calibration","Toy observed"],"rows":[[0,0,null],[0.2,0.2,0.05],[0.5,0.5,0.25],[0.8,0.8,0.55],[1,1,null]]}</script>
+<script type="application/json" data-viz-chart data-key="cohort">{"id":"dtp-risksets","title":"Actual mature snapshot counts — not prediction performance","description":"Final 2026-11-19 run. Each bar is a checkpoint population; these are not three sequential attrition steps.","height":290,"spec":{"type":"bar","x":"Checkpoint","y":"Mature snapshots","showValues":true,"xLabel":"Checkpoint","yLabel":"Program snapshots","valueDecimals":0},"columns":["Checkpoint","Mature snapshots"],"rows":[["Registry entry",7689],["After Phase 1 results",870],["After Phase 2 results",27]]}</script>
+</section>
+<script type="module">
+import {mountChart} from "https://persistent.oaistatic.com/plugins/visualize/charts/1.8.1/element.js";
+const root=document.getElementById("dtp-analysis-lab");
+const select=root.querySelector("#dtp-analysis-select");
+const configs=Object.fromEntries(Array.from(root.querySelectorAll("[data-viz-chart]")).map(el=>[el.dataset.key,JSON.parse(el.textContent)]));
+function savedValue(state){const key=state?.modelContent?.analysisView;return Object.hasOwn(configs,key)?key:"sigmoid";}
+let current=savedValue(window.openai?.widgetState);
+select.value=current;
+const chart=mountChart(root.querySelector("[data-viz-container]"),configs[current]);
+const details=root.querySelector("#dtp-analysis-counts");
+const head=root.querySelector("#dtp-analysis-head");
+const body=root.querySelector("#dtp-analysis-body");
+function apply(key,save){
+ current=Object.hasOwn(configs,key)?key:"sigmoid";
+ select.value=current;chart.config=configs[current];
+ details.hidden=current==="sigmoid";
+ head.replaceChildren();body.replaceChildren();
+ let headers=[],rows=[];
+ if(current==="calibration"){headers=["Predicted","Events","Examples","Observed"];rows=[["20%","1","20","5%"],["50%","5","20","25%"],["80%","11","20","55%"]];}
+ if(current==="cohort"){headers=["Checkpoint","Mature","Observed events","No matched event"];rows=[["Registry entry","7,689","53","7,636"],["After Phase 1","870","2","868"],["After Phase 2","27","0","27"]];}
+ for(const text of headers){const th=document.createElement("th");th.scope="col";th.textContent=text;head.append(th);}
+ for(const values of rows){const tr=document.createElement("tr");for(const text of values){const td=document.createElement("td");td.textContent=text;tr.append(td);}body.append(tr);}
+ root.querySelector("#dtp-analysis-status").textContent=current==="cohort"?"All three real-data model fits were not estimable; event counts are not clinical success rates.":current==="calibration"?"Illustrative probabilities are overconfident: observed fractions fall below the diagonal.":"The mathematical curve converts a score into a probability; it does not supply learned coefficients.";
+ if(save&&window.openai?.setWidgetState)window.openai.setWidgetState({modelContent:{analysisView:current},privateContent:null}).catch(()=>{});
+}
+select.disabled=false;apply(current,false);
+select.addEventListener("change",()=>apply(select.value,true));
+window.addEventListener("openai:set_globals",event=>{if(event.detail?.globals?.widgetState)apply(savedValue(event.detail.globals.widgetState),false);});
+</script>

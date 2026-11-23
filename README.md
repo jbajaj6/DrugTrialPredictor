@@ -1,5 +1,10 @@
 # DrugTrialPredictor
 
+The separate [Leo/Giannis phase-by-phase extension](leo/giannis/README.md)
+tracks candidate drug programs across registered phases. Its current question,
+data, and feasibility findings differ from the original trial-level Q1/Q2 work
+described below.
+
 > **Research question:** At the moment a drug trial is registered, can we predict whether it will finish and whether it will work? And do money (NIH grants), hype (news, Wikipedia), or an AI reading of the science tell us anything the trial design doesn't?
 
 ```mermaid

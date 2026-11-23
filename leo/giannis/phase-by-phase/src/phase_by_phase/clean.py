@@ -17,6 +17,7 @@ import pandas as pd
 
 PHASE_ALIASES = {
     "EARLY PHASE 1": "EARLY_PHASE1",
+    "EARLY PHASE1": "EARLY_PHASE1",
     "EARLY_PHASE1": "EARLY_PHASE1",
     "PHASE 1": "PHASE1",
     "PHASE1": "PHASE1",
