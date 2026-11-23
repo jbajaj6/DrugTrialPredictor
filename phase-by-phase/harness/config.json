@@ -1,0 +1,22 @@
+{
+  "scope": "Leo phase-by-phase only: within-phase trial completion and reported significance",
+  "phases": ["PHASE1", "PHASE2", "PHASE3"],
+  "targets": ["completion", "reported_significance"],
+  "input": "data/processed/trials.parquet",
+  "seed": 545,
+  "minimum_per_class_per_split": 20,
+  "interpretation": "Feasibility threshold only; does not establish adequate statistical power",
+  "n_estimators": 300,
+  "candidates": [
+    {"min_samples_leaf": 5, "max_depth": null, "max_features": "sqrt", "class_weight": null},
+    {"min_samples_leaf": 5, "max_depth": null, "max_features": "sqrt", "class_weight": "balanced"},
+    {"min_samples_leaf": 10, "max_depth": 12, "max_features": "sqrt", "class_weight": null},
+    {"min_samples_leaf": 10, "max_depth": 12, "max_features": "sqrt", "class_weight": "balanced"}
+  ],
+  "selection": "validation Brier score, lower is better",
+  "calibration": "sigmoid on separate 2015 rows",
+  "test_policy": "evaluate once per frozen experiment; no test-driven repair or tuning",
+  "agent_loop": {"max_repair_rounds": 3, "parallel_writers_per_file": 1},
+  "no_nlp": true,
+  "no_external_data_fetches": true
+}

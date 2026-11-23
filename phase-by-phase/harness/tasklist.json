@@ -1,0 +1,62 @@
+[
+  {
+    "id": "RF-01",
+    "task": "Audit main and phase-by-phase source without modifying either",
+    "status": "IMPLEMENTED",
+    "evidence": "README.md"
+  },
+  {
+    "id": "RF-02",
+    "task": "Audit existing real processed dataset by phase/target/split",
+    "status": "BLOCKED",
+    "reason": "Dataset is not present in this workspace"
+  },
+  {
+    "id": "RF-03",
+    "task": "Implement explicit no-NLP allowlist, labels, phase handling, split policies",
+    "status": "IMPLEMENTED",
+    "evidence": "policy.py"
+  },
+  {
+    "id": "RF-04",
+    "task": "Implement RF selection/calibration, freeze, single-use final-test runner",
+    "status": "IMPLEMENTED",
+    "evidence": "run.py",
+    "limitation": "Training integration not executed; dependencies and real dataset unavailable here"
+  },
+  {
+    "id": "RF-05",
+    "task": "Run policy regression tests and compile code",
+    "status": "TESTED_SYNTHETIC",
+    "evidence": "13 dependency-free policy tests pass; compilation and CLI help pass; RF execution not tested"
+  },
+  {
+    "id": "RF-06",
+    "task": "Run end-to-end synthetic smoke with dependencies in project environment",
+    "status": "PENDING"
+  },
+  {
+    "id": "RF-07",
+    "task": "Train real six-task study; mark sparse tasks unsupported",
+    "status": "BLOCKED",
+    "reason": "Requires RF-02 and RF-06"
+  },
+  {
+    "id": "RF-08",
+    "task": "Validate p qualifiers, endpoint selection/direction, historical provenance",
+    "status": "NOT_IMPLEMENTED",
+    "reason": "Information was collapsed or missing in current processed data; keep current numeric proxy explicit"
+  },
+  {
+    "id": "RF-09",
+    "task": "Produce final phase-specific results and uncertainty report",
+    "status": "BLOCKED",
+    "reason": "Requires frozen real training run"
+  },
+  {
+    "id": "RF-10",
+    "task": "Highest-phase-reached model with verified transition outcomes",
+    "status": "NOT_IMPLEMENTED",
+    "reason": "Explicit later milestone; not inferred from completion/significance outputs"
+  }
+]
