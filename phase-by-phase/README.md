@@ -1,18 +1,216 @@
-# Phase-by-Phase Drug Development Analysis
+# Leo/Giannis: Phase-by-Phase Drug Trial Prediction
 
-**Question:** can registry information at entry, and additional information posted
-after Phase 1 or Phase 2, help predict later Phase 3 development?
+**Primary question:** For a trial in each clinical phase, can we predict its
+eventual completion and whether a posted primary analysis is statistically
+significant? For later-phase trials, does already-public structured evidence from
+linked earlier trials improve those predictions beyond target-trial design and
+context on the **same target rows**?
 
-The complete acquisition, organization, audit, analysis and reporting pipeline
-is executable. Its identities remain **exact-label candidate programs**, not
-clinically adjudicated molecular identities. Any fitted models are exploratory
-retrospective estimates, not validated forecasts of approval or efficacy.
+This is structured-data modeling only: no NLP, embeddings, LLM extraction, or
+GPU work. Completion is distinct from reported statistical significance, which
+itself is **not** proof of clinical benefit. Phase advancement remains a separate
+question; it cannot be calculated by multiplying completion probabilities.
 
-**Latest executed finding:** the full 151,081-study query was organized and
-audited, but the strict longitudinal cohort has insufficient held-out events
-for credible model fitting. See [the measured results](RESULTS.md).
+**Verified starting point:** the previous 151,081-study registry snapshot,
+arm-aware candidate-program links, and five-year Phase 3 advancement audit are
+preserved. That strict advancement cohort lacked sufficient events for model
+fitting ([executed findings](RESULTS.md)). The slim snapshot contains no
+numeric results sections, so it cannot by itself answer the new earlier-phase
+evidence question. The new detail acquisition and development-only modeling
+checks have run; the sections below distinguish executed results from remaining
+limitations.
+
+## New task specification and implementation status
+
+| Prediction date | Target trial | Permitted inputs | Separate labels |
+| --- | --- | --- | --- |
+| At launch/first public registration | Phase 1, 2, or 3 | Target design/context only; no target final fields | Completed vs terminated/withdrawn; posted-primary-significance proxy |
+| At a later phase's launch | Linked Phase 2 or 3 | Same design/context, optionally earlier-phase structured results public by that date | The same two target labels |
+
+The at-launch comparison uses identical later-phase target trials for the
+design-only and design-plus-evidence models. Missing primary p-values are
+**unknown**, not non-significant. Exact-label regimen/indication links are
+candidate identities, not independently verified drug-development programs.
+Undated earlier evidence is excluded. Even a first results-posting date does
+not prove that today's detailed result values were already present in that
+version; without historical versions, such comparisons remain retrospective
+and exploratory. We do not present current enrollment or results as known at
+registration.
+
+Work sequence (tracked in [the task ledger](harness/TASK_LEDGER.md)):
+
+1. Replay the immutable, checksummed slim source; fetch full structured result
+   records into a separate resumable, checksummed snapshot. Start with a small
+   real pilot, then scale to the eligible result-bearing records.
+2. Build one-row-per-trial metadata plus child tables for result arms,
+   participant flow, outcomes, analyses and adverse events. Preserve arm IDs,
+   units, denominators, p-value qualifiers, missingness and source dates.
+3. Build phase-specific dated prediction rows and label-coverage/cleaning
+   funnels. Audit time order, duplicate IDs, one-to-many joins, group overlap,
+   outcome availability and historical-version limitations.
+4. On development data, compare prevalence and prespecified random-forest
+   models separately for completion and significance, by phase. Compare
+   design-only against added earlier evidence on matched target rows, using
+   ROC-AUC, average precision, Brier/log loss, calibration and uncertainty
+   only where class support permits.
+5. Keep final-test outcomes sealed through development. Freeze inputs, splits,
+   code and settings before one final evaluation. A weak score is a finding,
+   not permission to retune against the same holdout. Unsupported phase/task
+   cohorts receive explicit not-estimable reports.
+
+The coordinator assigns bounded coding tasks; a data auditor checks sources and
+labels; a builder implements; an independent evaluator runs checks and inspects
+artifacts. The loop is build → run → evaluate → repair → rerun, at most three
+repair rounds per task. See [execution rules](harness/EXECUTION_RULES.md).
+
+```mermaid
+flowchart LR
+  C["Coordinator: scope, assignments, ledger"] --> B["Builder: bounded code task"]
+  C --> A["Data auditor: source and label provenance"]
+  B --> X["Executable synthetic + real-data checks"]
+  A --> E["Independent evaluator: diff, artifacts, checks"]
+  X --> E
+  E -->|fail, max 3 repairs| B
+  E -->|verified result or blocker| C
+```
+
+### New structured-data commands (executed pilot)
+
+Run from the repository root with the existing project virtual environment:
+
+```bash
+python3 phase-by-phase/harness/check.py
+PYTHONPATH=phase-by-phase/src .venv/bin/python -m pytest -q phase-by-phase/tests
+PYTHONPATH=phase-by-phase/src .venv/bin/python -m phase_by_phase.fetch_details \
+  --trials data/processed/phase_by_phase_final_2026-11-19/trials.parquet \
+  --out phase-by-phase/data/raw/details_exact_pilot_2026-11-23 \
+  --ids NCT00586339 NCT01627561 NCT00844415 NCT01895777
+PYTHONPATH=phase-by-phase/src .venv/bin/python -m phase_by_phase.run_structured \
+  --source data/raw/phase_by_phase_full_2026-11-19 \
+  --details phase-by-phase/data/raw/details_exact_pilot_2026-11-23 \
+  --out phase-by-phase/data/processed/structured_exact_pilot_2026-11-23 \
+  --selected-only
+PYTHONPATH=phase-by-phase/src .venv/bin/python -m phase_by_phase.model_structured \
+  --dataset phase-by-phase/data/processed/structured_exact_pilot_2026-11-23 \
+  --out phase-by-phase/data/processed/structured_exact_pilot_2026-11-23/development_evaluation.json
+```
+
+Choose **new** output paths for a fresh run; commands refuse to overwrite
+previous artifacts. `--selected-only` is a pilot, not a complete-query model
+cohort. Omitting it replays and cleans all source metadata while enriching only
+the IDs present in the detail snapshot. The detail fetcher is resumable and
+checksummed; `--per-phase-year 40 --before-year 2024` selects a deterministic
+development-only acquisition sample without consulting outcome labels. Generated
+data under `phase-by-phase/data/` are Git-ignored.
+
+The pilot produces `trials.parquet`, `interventions.parquet`, `conditions.parquet`,
+`program_trials.parquet`, `programs.parquet`, `exclusions.parquet`, and
+`alias_candidates.parquet`, plus `result_arms.parquet`,
+`participant_flow.parquet`, `outcomes.parquet`, `analyses.parquet`,
+`adverse_events.parquet`, and `prediction_rows.parquet`. The accompanying
+`quality_audit.json`, `feature_coverage.json`, `run_manifest.json`, and
+`development_evaluation.json` distinguish structural integrity, actual field
+coverage, hashes, and model support.
+
+**Observed exact-date pilot:** four full result records and four dated trial
+rows; 204 result-arm, 56 participant-flow, 4,442 outcome, four statistical
+analysis and 648 adverse-event child rows. Three completion labels and one
+significance label are known. Structural audit PASS, overall WARN because
+clinical identity and historical versions remain unvalidated. Strict
+earlier-phase evidence count is zero: the current detailed records were revised
+after the later trials' prediction dates. All six phase/task model cells are
+explicitly **not estimable**; no real-data AUC is claimed. Independent review
+passed the synthetic and real extraction checks but classed model performance
+as blocked/partial on this pilot.
+
+**Observed scaled replay (2026-11-23):** a deterministic, outcome-blind
+phase/year sample of 2,280 full result records was downloaded and checksummed.
+The replay matched 2,279 records to the source snapshot's posting/update dates;
+one revised record (`NCT02192359`) was excluded, not silently merged. Running
+the updated pipeline against the full **151,081-trial** previously cleaned
+cohort produced 65,372 result-arm, 46,688 participant-flow, 160,142 outcome,
+9,380 analysis, and 575,441 adverse-event child rows. It produced 29,909
+development-period prediction rows (10,138 Phase 1; 12,142 Phase 2; 7,629
+Phase 3), with 14,128 known completion labels but only **67** known
+significance-proxy labels. The full-cohort structural audit passed; overall
+status remains WARN for clinical identity and historical availability. This is
+**not** full result-detail acquisition: 2,280 records were enriched, while the
+slim source marks 40,796 records as having results. Local Git-ignored outputs
+include `feature_coverage.json`, `quality_audit.json`, and `run_manifest.json`
+with checksums for every derived data artifact. The development model report
+is generated separately and is not final-holdout performance.
+
+**Independent development evaluation on that full-cohort replay:** completion
+models met the development support gate, but their validation discrimination
+was weak. These are validation findings, **not** final-test scores or calibrated
+individual success probabilities.
+
+| Completion task | Train / validation rows | Prevalence Brier | Design-forest AUC | Design-forest Brier |
+| --- | ---: | ---: | ---: | ---: |
+| Phase 1 | 2,043 / 1,131 | .09883 | .56070 | .09926 |
+| Phase 2 | 1,402 / 646 | .17213 | .56774 | .16942 |
+| Phase 3 | 1,095 / 457 | .10917 | .54643 | .10833 |
+
+The Phase 1 forest's Brier score is worse than simply predicting training
+prevalence; Phase 2 and 3 improvements are small. All three significance tasks
+are **not estimable** (only 4/4/8 training rows for Phases 1/2/3 after temporal
+label-availability rules). The matched earlier-evidence comparison is also not
+estimable: Phase 3 has zero eligible training rows and only two validation
+rows with strict prior evidence. There is no p-value proving a 75% individual
+probability, and AUC must not be read as such a probability. The report is
+`phase-by-phase/data/processed/structured_full_plus_2280_2026-11-23/development_evaluation.json`
+in local Git-ignored data. Registry revisions and candidate identity linkage
+still limit historical interpretation.
+
+The larger replay reuses and re-audits the earlier immutable cleaned tables:
+
+```bash
+PYTHONPATH=phase-by-phase/src .venv/bin/python -m phase_by_phase.fetch_details \
+  --trials data/processed/phase_by_phase_final_2026-11-19/trials.parquet \
+  --out phase-by-phase/data/raw/details_phase_year_40_2026-11-23 \
+  --per-phase-year 40 --before-year 2024
+PYTHONPATH=phase-by-phase/src .venv/bin/python -m phase_by_phase.run_structured \
+  --source data/raw/phase_by_phase_full_2026-11-19 \
+  --cleaned data/processed/phase_by_phase_final_2026-11-19 \
+  --details phase-by-phase/data/raw/details_phase_year_40_2026-11-23 \
+  --out phase-by-phase/data/processed/structured_full_plus_2280_2026-11-23
+PYTHONPATH=phase-by-phase/src .venv/bin/python -m phase_by_phase.model_structured \
+  --dataset phase-by-phase/data/processed/structured_full_plus_2280_2026-11-23 \
+  --out phase-by-phase/data/processed/structured_full_plus_2280_2026-11-23/development_evaluation.json
+```
+
+The fixed development split is prediction before 2020 for training, 2020–2023
+for validation, and 2024 onward as a **sealed** holdout. Training labels must
+have an available version date before 2020; validation labels before 2024.
+Exact drug groups overlapping training are purged from validation. The
+prevalence baseline and prespecified 200-tree random forest use train-only
+imputation/encoding. Supported cohorts report ROC-AUC, average precision,
+Brier, log loss, five calibration bins, a 0.5-threshold confusion matrix, and
+paired group-bootstrap Brier differences for the matched-row evidence
+comparison. Unsupported cohorts report counts and refusal reasons. The final
+holdout is not evaluated by this development command.
 
 ## How the pieces fit together
+
+The new phase-specific experiment is:
+
+```mermaid
+flowchart LR
+  raw["Checksummed registry records"] --> clean["Trial + arm-aware clean tables"]
+  detail["Full posted results"] --> child["Flow / outcomes / analyses / safety child tables"]
+  clean --> rows["Dated target-trial rows"]
+  child --> prior["Earlier-phase evidence with public-date gate"]
+  prior --> rows
+  rows --> audit["Identity, coverage, chronology + leakage audit"]
+  audit --> design["Design-only baseline / forest"]
+  audit --> update["Same rows + earlier evidence forest"]
+  design --> compare["Completion and significance, by phase"]
+  update --> compare
+  compare --> report["Development evaluation / sealed final holdout"]
+```
+
+The **previously executed advancement analysis**, retained for reproducibility,
+has a different label and support gate:
 
 ```mermaid
 flowchart TD
@@ -41,7 +239,7 @@ Phase 1 → Phase 2 → Phase 3 → possible approval motivates the project, but
 not imposed on records: trials overlap, combine phases, and address different
 indications. Approval requires separate indication-specific regulatory linkage.
 
-## Run it
+## Previous advancement pipeline (executed)
 
 Run from the repository root with Python 3.10+:
 

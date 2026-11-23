@@ -1,9 +1,21 @@
 # DrugTrialPredictor
 
-The separate [Leo/Giannis phase-by-phase extension](phase-by-phase/README.md)
-tracks candidate drug programs across registered phases. Its current question,
-data, and feasibility findings differ from the original trial-level Q1/Q2 work
-described below.
+> **On the `leo/giannis` branch:** [Leo/Giannis phase-by-phase work](phase-by-phase/README.md)
+> is a separate structured-data extension of the original trial-level project
+> below. It replays a checksummed 151,081-trial registry cohort, enriches 2,280
+> full result records, audits dated Phase 1/2/3 prediction rows, and evaluates
+> separate completion and reported-primary-significance questions. The
+> [implementation and reproducible commands](phase-by-phase/README.md) and
+> [task/test ledger](phase-by-phase/harness/TASK_LEDGER.md) distinguish what ran
+> from what remains unsupported.
+
+**Current development finding:** Phase 1/2/3 completion models fit, but their
+validation ROC-AUCs are only 0.561/0.568/0.546. Reported-primary-significance
+models and the matched earlier-evidence comparison are not yet estimable under
+the date and sample-support rules. No final holdout was evaluated. These AUCs
+are not individual success probabilities. This branch does not modify the
+original benchmark results or claim that current registry details were known
+when an older trial launched.
 
 > **Research question:** At the moment a drug trial is registered, can we predict whether it will finish and whether it will work? And do money (NIH grants), hype (news, Wikipedia), or an AI reading of the science tell us anything the trial design doesn't?
 
