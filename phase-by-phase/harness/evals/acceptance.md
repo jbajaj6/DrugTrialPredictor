@@ -55,3 +55,19 @@ read the relevant artifacts, used the permitted tools, reproduced defects,
 respected one-writer ownership, stopped at bounded retries, and reported the
 actual artifact state. Tests grade correctness; independent agent review grades
 interpretation and omitted limitations. No LLM-as-judge replaces data labels.
+
+## Enforced data separation
+
+The forest fits only 2005–2012 rows; model selection uses 2013–2014; a separate
+calibrator fits only 2015; final evaluation uses 2016–2019. Preprocessing is
+training-fitted. Test rows are removed before constructing development task
+frames; test labels/rates are withheld from development audit output. Every
+run verifies unique NCT IDs, year-to-partition assignment and split integrity.
+If a validated leakage_group_id is supplied, cross-partition related groups
+also fail. Provisional program links are not accepted as verified groups.
+Absent a verified group, only NCT-level separation is established. The frozen
+input/code/config/model hashes and one-use test marker still apply.
+
+25 dependency-free policy tests now pass, including duplicate NCT, wrong-year
+routing, optional related-group overlap and estimator-fit partition guards.
+ML pipeline integration remains unexecuted in this workspace.

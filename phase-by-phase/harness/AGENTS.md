@@ -65,3 +65,15 @@ audit first-match label noise, and require per-class support. Do not claim the
 binary runner supports multiclass targets yet. Study-level intervention count
 is not validated active-regimen burden; explanations must express associations,
 not causes. Never hard-code penalties from the earlier reason percentages.
+
+## Enforced data separation
+
+The forest fits only 2005–2012 rows; model selection uses 2013–2014; a separate
+calibrator fits only 2015; final evaluation uses 2016–2019. Preprocessing is
+training-fitted. Test rows are removed before constructing development task
+frames; test labels/rates are withheld from development audit output. Every
+run verifies unique NCT IDs, year-to-partition assignment and split integrity.
+If a validated leakage_group_id is supplied, cross-partition related groups
+also fail. Provisional program links are not accepted as verified groups.
+Absent a verified group, only NCT-level separation is established. The frozen
+input/code/config/model hashes and one-use test marker still apply.

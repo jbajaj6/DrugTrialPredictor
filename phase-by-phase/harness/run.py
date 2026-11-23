@@ -10,7 +10,7 @@ import platform
 from pathlib import Path
 from datetime import datetime, timezone
 
-from policy import FEATURES, CATEGORICAL, NUMERIC, phase_name, completion_label, significance_label, supported, split_year, validate_features
+from policy import FEATURES, CATEGORICAL, NUMERIC, phase_name, completion_label, significance_label, supported, split_year, validate_features, verify_split_records, assert_fit_partition
 
 ROOT = Path(__file__).resolve().parent
 
@@ -53,7 +53,14 @@ def load_data(path):
     df["reported_significance"] = [significance_label(s,p) for s,p in zip(df.overall_status,df.label_min_primary_p)]
     df["split"] = df.start_year.map(split_year)
     df["cohort_eligible"] = (registered-dates).dt.days.le(90) & df.completion.notna()
+    verify_partitions(df)
     return df
+
+def verify_partitions(df):
+    keys = ["nct_id", "start_year", "split"]
+    group_key = "leakage_group_id" if "leakage_group_id" in df.columns else None
+    if group_key: keys.append(group_key)
+    return verify_split_records(df[keys].to_dict("records"), group_key=group_key)
 
 def identity(args, config):
     return {"data_sha256":sha(args.data), "config_sha256":sha(ROOT/"config.json"),
@@ -68,6 +75,10 @@ def audit(df, config):
         for target in config["targets"]:
             for split in ["train","validation","calibration","test"]:
                 d = eligible[(eligible.phase_bucket==phase)&(eligible.split==split)]
+                if split == "test":
+                    rows.append({"phase":phase,"target":target,"split":split,
+                                 "n_cohort":len(d),"outcomes":"WITHHELD_UNTIL_FINAL_EVALUATION"})
+                    continue
                 y = d[target].dropna().astype(int).tolist()
                 rows.append({"phase":phase,"target":target,"split":split,"n_cohort":len(d),
                              "n_labeled":len(y),"n_positive":sum(y),"n_negative":len(y)-sum(y),
@@ -75,7 +86,8 @@ def audit(df, config):
                              "supported":supported(y, config["minimum_per_class_per_split"])})
     return {"source_rows":len(df),"eligible_rows":len(eligible),
             "excluded_combined_early_other":eligible.phase_bucket.value_counts().to_dict(),
-            "missingness":eligible[FEATURES].isna().mean().to_dict(),"tasks":rows,
+            "missingness_development_only":eligible[eligible.split.ne("test")][FEATURES].isna().mean().to_dict(),"tasks":rows,
+            "split_integrity":verify_partitions(df),
             "warnings":["Retrospective current-record study; historical feature and label availability not established.",
                         "Q2 is the existing numeric MIN-p proxy among completed reporters; p-value qualifiers/direction/multiplicity unavailable.",
                         "One row per NCT ID; no validated drug-level grouping or transition labels.",
@@ -120,17 +132,22 @@ def fit(args, df, config, out):
     if not args.retrospective:
         raise ValueError("Current-record inputs support retrospective analysis only. Use --retrospective to label this accurately.")
     if (out/"frozen.json").exists(): raise ValueError("Frozen experiment exists; use a new output directory")
+    split_integrity = verify_partitions(df)
+    # Discard final-test rows before constructing any development task frame.
+    development = df[df.split.isin(["train", "validation", "calibration"])].copy()
     all_results=[]
     for phase in config["phases"]:
         for target in config["targets"]:
             task=f"{phase}_{target}"
-            task_df=df[df.cohort_eligible & df.phase_bucket.eq(phase) & df[target].notna()]
+            task_df=development[development.cohort_eligible & development.phase_bucket.eq(phase) & development[target].notna()]
             parts={s:task_df[task_df.split.eq(s)] for s in ["train","validation","calibration"]}
             if any(not supported(d[target].astype(int).tolist(),config["minimum_per_class_per_split"]) for d in parts.values()):
                 all_results.append({"task":task,"status":"UNSUPPORTED","reason":"insufficient class counts in train/validation/calibration"})
                 trace(out,"task_unsupported",task=task)
                 continue
             train,val,cal=[parts[s] for s in ["train","validation","calibration"]]
+            assert_fit_partition(train[["split"]].to_dict("records"), {"train"})
+            assert_fit_partition(cal[["split"]].to_dict("records"), {"calibration"})
             best=None
             for params in config["candidates"]:
                 model=make_pipe(config,params)
@@ -153,6 +170,7 @@ def fit(args, df, config, out):
                                 "baseline_validation_brier":float(brier_score_loss(val[target],np.full(len(val),artifact["train_prevalence"]))),
                                 "artifact_sha256":sha(out/f"{task}.joblib")})
     frozen={**identity(args,config),"sklearn":sklearn.__version__,"tasks":all_results,
+            "split_integrity":split_integrity,
             "claim":"Retrospective within-phase completion/significance; no progression prediction"}
     write(out/"frozen.json",frozen)
     trace(out,"freeze",tasks=all_results)
@@ -163,6 +181,8 @@ def evaluate(args,df,config,out):
     import sklearn
     from sklearn.metrics import roc_auc_score, brier_score_loss
     frozen=json.loads((out/"frozen.json").read_text())
+    if verify_partitions(df) != frozen["split_integrity"]:
+        raise ValueError("Split integrity differs from frozen experiment")
     current=identity(args,config)
     for key in ["data_sha256","config_sha256","code_sha256","python"]:
         if current[key]!=frozen[key]: raise ValueError(f"Frozen experiment changed: {key}")
@@ -219,3 +239,4 @@ def main():
         trace(out,"FAIL",error=str(e)); raise
 
 if __name__=="__main__": main()
+

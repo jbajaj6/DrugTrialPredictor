@@ -53,3 +53,49 @@ def split_year(year):
 
 def supported(labels, minimum=20):
     return sum(v == 0 for v in labels) >= minimum and sum(v == 1 for v in labels) >= minimum
+
+def verify_split_records(records, group_key=None):
+    """Fail on repeated trial IDs, bad year routing or cross-split related groups.
+
+    Optional groups must be validated upstream; this does not infer drug aliases.
+    """
+    seen = set()
+    groups = {}
+    counts = {s: 0 for s in ["train", "validation", "calibration", "test", "excluded"]}
+    for row in records:
+        trial = row.get("nct_id")
+        if not isinstance(trial, str) or not trial.strip():
+            raise ValueError("Missing/invalid trial ID in split manifest")
+        if trial in seen:
+            raise ValueError(f"Trial repeated in split manifest: {trial}")
+        seen.add(trial)
+        year = row.get("start_year")
+        try:
+            numeric_year = float(year)
+            if not numeric_year.is_integer(): raise ValueError("Non-integer year")
+            expected = split_year(int(numeric_year))
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("Missing/invalid split year") from exc
+        split = row.get("split")
+        if split != expected:
+            raise ValueError(f"Wrong split for {trial}: {split}, expected {expected}")
+        counts[split] += 1
+        if group_key and split != "excluded":
+            group = row.get(group_key)
+            if not isinstance(group, str) or not group.strip():
+                raise ValueError("Missing validated leakage group")
+            if group in groups and groups[group] != split:
+                raise ValueError(f"Related group crosses partitions: {group}")
+            groups[group] = split
+    return {"unique_trials": len(seen), "partition_counts": counts,
+            "trial_id_overlap": 0, "group_check": group_key or "unavailable"}
+
+def assert_fit_partition(records, allowed_splits):
+    """Guard every estimator fit, including the probability calibrator."""
+    allowed = set(allowed_splits)
+    if not allowed or not allowed <= {"train", "calibration"}:
+        raise ValueError("Only train or calibration may fit their assigned estimator")
+    for row in records:
+        if row.get("split") not in allowed:
+            raise ValueError(f"Forbidden fitting partition: {row.get('split')}")
+

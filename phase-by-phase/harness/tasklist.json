@@ -28,7 +28,7 @@
     "id": "RF-05",
     "task": "Run policy regression tests and compile code",
     "status": "TESTED_SYNTHETIC",
-    "evidence": "13 dependency-free policy tests pass; compilation and CLI help pass; RF execution not tested"
+    "evidence": "25 dependency-free policy tests pass; compilation passes; full ML integration not yet tested"
   },
   {
     "id": "RF-06",
@@ -98,5 +98,11 @@
     "task": "Test regimen/design recruitment hypothesis and validate explanations without causal claims",
     "status": "PENDING",
     "reason": "Study-level drug count is not active-regimen burden; arm-aware regimen features need provenance"
+  },
+  {
+    "id": "RF-17",
+    "task": "Enforce trial split identity, chronological routing, estimator fitting guards and withheld development test outcomes",
+    "status": "TESTED_SYNTHETIC",
+    "evidence": "25 policy tests; run.py removes test rows before development tasks; optional verified related-group checks"
   }
 ]

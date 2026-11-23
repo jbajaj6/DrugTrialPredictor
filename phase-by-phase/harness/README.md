@@ -234,10 +234,22 @@ locally generated, hash-matched models from its frozen run.
 
 Implemented: isolated scope, policies, explicit feature allowlist, audit/train/
 evaluate CLI, bounded agent runbook, four-candidate RF selection, calibration,
-freeze manifests, final-test guard, JSON/CSV output, 13 regression tests.
+freeze manifests, final-test guard, JSON/CSV output, 25 regression tests.
 
 Verified in this workspace: policy tests and compilation (see progress.jsonl).
 Not verified here: pandas/sklearn execution or real-data models. The current
 workspace has neither the dataset nor those ML dependencies. Run the explicit
 integration cases before using this for research results. No trained model,
 new AUC, or live agent service is claimed.
+
+## Enforced data separation
+
+The forest fits only 2005–2012 rows; model selection uses 2013–2014; a separate
+calibrator fits only 2015; final evaluation uses 2016–2019. Preprocessing is
+training-fitted. Test rows are removed before constructing development task
+frames; test labels/rates are withheld from development audit output. Every
+run verifies unique NCT IDs, year-to-partition assignment and split integrity.
+If a validated leakage_group_id is supplied, cross-partition related groups
+also fail. Provisional program links are not accepted as verified groups.
+Absent a verified group, only NCT-level separation is established. The frozen
+input/code/config/model hashes and one-use test marker still apply.
