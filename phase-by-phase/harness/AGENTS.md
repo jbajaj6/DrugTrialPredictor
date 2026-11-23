@@ -55,3 +55,13 @@ Distinguish IMPLEMENTED, TESTED_SYNTHETIC, TESTED_REAL, UNSUPPORTED, BLOCKED,
 and NOT_IMPLEMENTED. Unit tests do not establish real-data model validity.
 Do not edit this scope, label policy, test lock, or eval assertions to obtain
 a pass. Report proposed scientific policy changes separately for Leo to decide.
+
+## Proposed stopping-reason extension
+
+Read STOPPING_REASON_DESIGN.md before RF-14 through RF-16. Existing categorized
+stopping reasons are label-only. No new NLP predictors or broader-repository
+changes are authorized by this extension. Retain unknown/ambiguous reasons,
+audit first-match label noise, and require per-class support. Do not claim the
+binary runner supports multiclass targets yet. Study-level intervention count
+is not validated active-regimen burden; explanations must express associations,
+not causes. Never hard-code penalties from the earlier reason percentages.

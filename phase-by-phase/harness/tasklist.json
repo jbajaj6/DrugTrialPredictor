@@ -76,5 +76,27 @@
     "task": "Evaluate safe sponsor-history ablations, overfit diagnostics, withdrawn/terminated sensitivity and yearly calibration",
     "status": "PENDING",
     "reason": "Do not assume pooled prior findings replicate by phase; use fixed matched rows and frozen splits"
+  },
+  {
+    "id": "RF-14",
+    "task": "Audit existing categorized stopping reasons by phase/status/year and manually validate enrollment/business/unknown labels",
+    "status": "PENDING",
+    "evidence": "STOPPING_REASON_DESIGN.md",
+    "reason": "Existing regex labels are first-match and may omit multiple reasons; no real data available here"
+  },
+  {
+    "id": "RF-15",
+    "task": "Add phase-specific auxiliary multiclass reported-stopping-reason forests with unknown category, calibration and per-class evals",
+    "status": "PENDING",
+    "depends_on": [
+      "RF-14"
+    ],
+    "reason": "Design only; existing binary runner is not a multiclass implementation"
+  },
+  {
+    "id": "RF-16",
+    "task": "Test regimen/design recruitment hypothesis and validate explanations without causal claims",
+    "status": "PENDING",
+    "reason": "Study-level drug count is not active-regimen burden; arm-aware regimen features need provenance"
   }
 ]

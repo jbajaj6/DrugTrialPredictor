@@ -61,3 +61,11 @@ replication. A confidence interval overlapping no gain stays uncertain.
 All changes remain under phase-by-phase/harness. This update records lessons,
 adds explicit evaluation requirements and assigns follow-up work. It does not
 claim that pending ablations, subgroup audits or real-data experiments have run.
+
+## Proposed extension: predict reported operational stopping reasons
+
+See [STOPPING_REASON_DESIGN.md](STOPPING_REASON_DESIGN.md). Enrollment and business
+reasons can become audited outcomes for an auxiliary phase-specific forest,
+with unknown/ambiguous reasons retained. This design is pending implementation;
+existing completion/significance models remain unchanged. Regimen complexity
+is a hypothesis to test, not a hard-coded enrollment penalty.
