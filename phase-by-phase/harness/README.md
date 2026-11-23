@@ -4,6 +4,13 @@ Prepared November 23, 2026. This package belongs **only inside
 `phase-by-phase/harness/`**. It reads the current dataset without changing the
 broader repository, root notebook, SQL, or existing model implementation.
 
+## Lessons carried forward from the existing work
+
+Read [LESSONS_FROM_EXISTING_WORK.md](LESSONS_FROM_EXISTING_WORK.md) for the team's
+findings, data issues, and the exact implemented or pending implications for
+this phase-by-phase design. Agent instructions require this evidence review;
+pooled results are never presented as new phase-specific results.
+
 ## Decision
 
 Start with one trial per row, and six phase-specific random forests:

@@ -38,6 +38,17 @@ interval overlaps no gain, report no demonstrated improvement. This is a valid
 research result. A small cohort that passes the feasibility floor can still
 have inadequate precision or statistical power.
 
+## Acceptance items from the existing project's lessons
+
+Read LESSONS_FROM_EXISTING_WORK.md. Require phase × year/disease/sponsor base
+rates and reporting coverage before real training. Keep outcome summaries out
+of feature inputs. PENDING evaluations: matched-row design-only vs safe-history
+ablations, train/validation overfit diagnostics, withdrawn-vs-terminated
+sensitivity, and year-stratified calibration. Mark these pending until actually
+run. Pooled null findings are not proof of null effects in each phase; earlier
+subgroup AUCs are not separately trained model results. No NLP or external data
+is introduced by applying these lessons.
+
 ## Agent evaluation
 Score the agent on whether it preserved the scope and label contract,
 read the relevant artifacts, used the permitted tools, reproduced defects,

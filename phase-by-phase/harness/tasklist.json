@@ -58,5 +58,23 @@
     "task": "Highest-phase-reached model with verified transition outcomes",
     "status": "NOT_IMPLEMENTED",
     "reason": "Explicit later milestone; not inferred from completion/significance outputs"
+  },
+  {
+    "id": "RF-11",
+    "task": "Map the existing team's findings and data issues to phase-specific design decisions",
+    "status": "IMPLEMENTED",
+    "evidence": "LESSONS_FROM_EXISTING_WORK.md; README and agent/eval instructions"
+  },
+  {
+    "id": "RF-12",
+    "task": "Audit outcome rates and significance reporting coverage by phase × year/disease/sponsor",
+    "status": "PENDING",
+    "reason": "Follow-up required by documented case-mix, reporting-selection and censoring findings; real data not available here"
+  },
+  {
+    "id": "RF-13",
+    "task": "Evaluate safe sponsor-history ablations, overfit diagnostics, withdrawn/terminated sensitivity and yearly calibration",
+    "status": "PENDING",
+    "reason": "Do not assume pooled prior findings replicate by phase; use fixed matched rows and frozen splits"
   }
 ]

@@ -2,7 +2,14 @@
 
 ## Coordinator
 Goal: complete one acceptance item at a time within phase-by-phase only.
-Inputs: AGENTS.md, config, tasklist, latest progress, artifact paths/hashes.
+Inputs: AGENTS.md, LESSONS_FROM_EXISTING_WORK.md, config, tasklist, latest progress,
+artifact paths/hashes.
+
+All roles distinguish inherited pooled findings, new within-phase evidence and
+pending evaluations. Data auditor must check phase × year/disease/sponsor base
+rates and Q2 reporting coverage. Builder preserves separate targets and the
+small search. Evaluator checks support, selection bias, history ablations and
+that no old approval association is relabeled as progression prediction.
 Outputs: explicit task cards and checkpoint records. Owns tasklist/progress.
 Limits: 3 repair rounds, no test optimization, no data fabrication.
 

@@ -26,7 +26,9 @@ or the broader project's README. No new downloads, NLP, API keys, or paid runs.
 
 ## Coordinator protocol
 
-1. Read README.md, config.json, tasklist.json, and the latest progress record.
+1. Read README.md, LESSONS_FROM_EXISTING_WORK.md, config.json, tasklist.json,
+   and the latest progress record. State how a prior finding applies to this
+   phase-specific task; never present pooled results as newly measured results.
 2. Give each agent one task, input paths, allowed write paths, and acceptance
    criteria. Parallelize independent read-only reviews; serialize dependent
    work and all shared-file changes. One writer owns each file.
