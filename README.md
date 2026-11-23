@@ -1,6 +1,6 @@
 # DrugTrialPredictor
 
-The separate [Leo/Giannis phase-by-phase extension](leo/giannis/README.md)
+The separate [Leo/Giannis phase-by-phase extension](phase-by-phase/README.md)
 tracks candidate drug programs across registered phases. Its current question,
 data, and feasibility findings differ from the original trial-level Q1/Q2 work
 described below.

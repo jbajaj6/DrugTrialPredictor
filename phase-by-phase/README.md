@@ -47,14 +47,14 @@ Run from the repository root with Python 3.10+:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/python -m pip install -r leo/giannis/phase-by-phase/requirements.txt
+.venv/bin/python -m pip install -r phase-by-phase/requirements.txt
 .venv/bin/python -m pytest -q
 ```
 
 Download the complete defined cohort, clean it, audit it, and run the analysis:
 
 ```bash
-PYTHONPATH=leo/giannis/phase-by-phase/src .venv/bin/python -m phase_by_phase.run_analysis \
+PYTHONPATH=phase-by-phase/src .venv/bin/python -m phase_by_phase.run_analysis \
   --download --cutoff 2026-11-19 \
   --snapshot data/raw/phase_by_phase_full_2026-11-19 \
   --out data/processed/phase_by_phase_full_2026-11-19 \
@@ -69,7 +69,7 @@ every optional module; detailed endpoint/safety results are not requested.
 Replay saved pages with **no network request**:
 
 ```bash
-PYTHONPATH=leo/giannis/phase-by-phase/src .venv/bin/python -m phase_by_phase.run_analysis \
+PYTHONPATH=phase-by-phase/src .venv/bin/python -m phase_by_phase.run_analysis \
   --snapshot data/raw/phase_by_phase_full_2026-11-19 \
   --out data/processed/phase_by_phase_replay \
   --horizon-years 5 --bootstrap 300
@@ -193,6 +193,39 @@ versions and execution settings. See [STATUS.md](STATUS.md) for the latest run.
 
 FDA approval, detailed safety/efficacy extraction, coefficient p-values, and
 individual probability intervals remain unsupported rather than fabricated.
+
+## What is here and what comes next
+
+This folder contains the pipeline source and tests (`src/` and `tests/`),
+[executed findings](RESULTS.md), [implementation status](STATUS.md),
+[source review](SOURCE_REVIEW.md), and two interactive explainers in
+[visualizations/](visualizations/): a
+[pipeline walkthrough](visualizations/drug-development-walkthrough.html) and an
+[analysis-methods lab](visualizations/analysis-methods-lab.html). The longer
+[learning guide](https://chatgpt.com/space/page_d8723a0d42748191ac34fc65d61aee01)
+is a separate ChatGPT Page, not a file in this repository.
+
+The next steps are:
+
+1. Review a source-linked sample of candidate programs and exclusions; measure
+   false links and missed Phase 3 continuations, and adjudicate drug aliases,
+   formulations, combinations, indication equivalence and repurposing.
+2. Obtain historical registry versions or a defensible as-of reconstruction;
+   prespecify sensitivity analyses for month-only dates rather than inventing
+   exact days.
+3. Rebuild timelines, five-year labels and related-program-disjoint time splits
+   after identity review. Report the independent event support in every split.
+4. Extract publicly dated Phase 1/2 efficacy and safety findings before claiming
+   a biological evidence update. Treat indication-specific FDA approval as a
+   separate linkage and outcome problem.
+5. Fit and compare historical-rate, baseline and updated models only if the
+   support gate passes; then assess held-out calibration, Brier score,
+   discrimination and uncertainty. A coefficient p-value would not be the
+   chance that an individual prediction is true.
+
+The downloaded raw JSON and processed Parquet stay under the repository-root
+`data/` directory and are Git-ignored. GitHub holds the reproducible code,
+tests, documentation and visualizations, not the full dataset.
 
 ## Source and code map
 

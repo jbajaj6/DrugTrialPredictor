@@ -55,5 +55,5 @@ The first full run and the optimization-equivalence run are preserved separately
 use the **final** output for conclusions. Acquisition is a live API extraction,
 not a transactionally frozen registry database.
 
-The repository tracks code, tests, documentation, and visualizations under
-`leo/giannis/`; raw and processed data remain local and Git-ignored.
+The `leo/giannis` branch tracks code, tests, documentation, and visualizations
+under `phase-by-phase/`; raw and processed data remain local and Git-ignored.

@@ -134,7 +134,7 @@ def write_report(output: Path, tables: dict, manifest: dict, audit: dict, analys
               "- [Trial exclusions](exclusions.parquet): every rejected mapping with its reason.",
               "- [Review queue](linkage_review_queue.parquet): seeded source-linked candidates for clinical identity review.",
               "- [Predictions](predictions.parquet): held-out predictions only, when support gates pass.", "",
-              "Run the documented offline command in the [project README](../../../leo/giannis/phase-by-phase/README.md). "
+              "Run the documented offline command in the [project README](../../../phase-by-phase/README.md). "
               "Use a new output directory to preserve previous runs.", ""]
     (output / "REPORT.md").write_text("\n".join(lines), encoding="utf-8")
     _plots(output, tables, analysis)

@@ -119,11 +119,11 @@ splits and JSON results on the initial full run before the final source fixes.
 
 Final local outputs:
 
-- [Full report](../../../data/processed/phase_by_phase_final_2026-11-19/REPORT.md)
-- [Quality audit](../../../data/processed/phase_by_phase_final_2026-11-19/quality_audit.json)
-- [Analysis metrics and feasibility](../../../data/processed/phase_by_phase_final_2026-11-19/analysis_report.json)
-- [Execution manifest](../../../data/processed/phase_by_phase_final_2026-11-19/run_manifest.json)
-- [Cohort figure](../../../data/processed/phase_by_phase_final_2026-11-19/cohort.png)
+- [Full report](../data/processed/phase_by_phase_final_2026-11-19/REPORT.md)
+- [Quality audit](../data/processed/phase_by_phase_final_2026-11-19/quality_audit.json)
+- [Analysis metrics and feasibility](../data/processed/phase_by_phase_final_2026-11-19/analysis_report.json)
+- [Execution manifest](../data/processed/phase_by_phase_final_2026-11-19/run_manifest.json)
+- [Cohort figure](../data/processed/phase_by_phase_final_2026-11-19/cohort.png)
 
 These data/output links work in the local checkout; generated data are deliberately
 Git-ignored and are not included on GitHub. The source files and this summary
