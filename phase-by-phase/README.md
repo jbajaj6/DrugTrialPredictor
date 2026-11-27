@@ -162,6 +162,31 @@ harness, source multiset and timing checks, and an independent **18/18-file
 byte-identical full replay**. This is a safe, pausable linkage *inventory*,
 not an efficacy result or prediction score.
 
+**B27 Phase 3 outcome-link feasibility (2026-11-27):** The first
+[builder attempt](harness/B27_PROXY_LINK_FEASIBILITY.md) was
+[rejected](harness/B27_INDEPENDENT_EVALUATION.md): an exploratory read loaded
+complete pre-2024 result-child files before source authentication and
+candidate restriction. Passing tests did not erase that access-rule breach.
+The frozen [audit code](src/phase_by_phase/proxy_link_feasibility_b27.py) was
+then executed in a separately supervised, clean process with no exploratory
+result reads. Its [independent evaluation](harness/B27R_INDEPENDENT_EVALUATION.md)
+accepted **only that clean replay**, after 51 focused tests, 515 project
+tests, the harness, 22 pinned input hashes, 11 output hashes, and a 12/12-file
+byte-identical comparison. The original attempt remains rejected.
+
+Among **19,576** first-public Phase 3 targets, only **297** have B22's narrow
+interpretable reported-primary-superiority-p proxy (170 below .05, 127 at or
+above .05; 19,279 unknown). Of those 297, **189** have a strictly earlier
+same-name Phase 1/2 *registration*; **91** have an earlier same-name trial
+with an as-of, nonempty primary measurement record. The 91 are **not**
+verified same-drug/indication programs, evidence of efficacy, or a training
+sample ready for prediction. The unchanged early chronological split has
+zero known proxy labels public before 2016. No new model, AUC, text feature,
+or 2024+ final-holdout evaluation resulted. See the
+[B27R worker handoff](harness/B27R_CLEAN_REPLAY.md) and
+[task ledger](harness/TASK_LEDGER.md#b27r-preregistered-clean-process-replay-2026-11-27)
+for exact commands, grains, date rules, output paths and the preserved failure.
+
 **Current status:** Historical cleaning and first-public design staging are
 complete, and fixed-split and rolling-year development-only model comparisons
 have run. The five
