@@ -75,11 +75,19 @@ harness. The proxy says only what a reported statistical test said; it does
 label was public before 2016, and the later rolling cohorts fail the fixed
 training/validation support gates, so **no new model or AUC was produced**.
 
-A separate [B23 probability-sampled coverage pilot](harness/TASK_LEDGER.md#b23-preregistered-probability-panel-molecular-candidate-coverage-pilot-2026-11-27)
-is measuring contemporary ChEMBL *candidate-evidence* coverage for 100
-first-public Phase 3 records. It is not a verified drug identity or a
-historical model feature; its acquisition and independent review are still
-in progress.
+A separate [B23 probability-sampled coverage pilot](harness/B23_COVERAGE.md)
+and [independent evaluation](harness/B23_INDEPENDENT_EVALUATION.md) have run
+on **100** first-public Phase 3 records. All **229** recorded drug names were
+accounted for in 393 bounded ChEMBL attempts, with a byte-identical offline
+replay. Among those **100 sampled trials only**, 47 had at least one complete
+exact-name *candidate* search, 20 had complete searches with no candidate,
+and 33 remain unknown; **47%–80%** is a within-sample partial-identification
+range, not a population estimate or verified drug-match rate. The reviewer
+found a real arm-link disagreement between the source's two assertion
+directions, preserved in the output. Contemporary ChEMBL evidence is not a
+historical model feature. Because 33 trial statuses remain unresolved, the
+independent pass **does not authorize the planned 400-trial scale-up**; a new
+acquisition and uncertainty plan is needed first.
 
 **Current status:** Historical cleaning and first-public design staging are
 complete, and fixed-split and rolling-year development-only model comparisons
