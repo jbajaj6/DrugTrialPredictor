@@ -187,6 +187,33 @@ or 2024+ final-holdout evaluation resulted. See the
 [task ledger](harness/TASK_LEDGER.md#b27r-preregistered-clean-process-replay-2026-11-27)
 for exact commands, grains, date rules, output paths and the preserved failure.
 
+**B28 exact-arm feasibility (2026-11-27):** The
+[audited implementation](src/phase_by_phase/arm_feasibility_b28.py) joins
+each possible earlier/later drug-name pair back to its *specific*
+intervention ordinal, arm and first-public version on both sides. Its
+[independent evaluation](harness/B28_INDEPENDENT_EVALUATION.md) passed 37
+focused tests, 552 project tests, the harness, source-key checks and a
+13/13-file byte-identical replay. The recorded funnel is:
+
+| Gate | Distinct Phase 3 targets | What it establishes |
+| --- | ---: | --- |
+| First-public development designs | 19,576 | A Phase 3 cohort, not an outcome label |
+| Narrow reported-primary-p proxy known | 297 | A traceable reported test, not clinical benefit |
+| Earlier same-name P1/P2 trial with nonempty primary measurement publicly present | 91 | Earlier result *presence*, not its direction or drug identity |
+| Specific experimental single-DRUG arm with a same-key valid reciprocal link on both sides | **7** | Strict recorded arm-link candidate, still not verified same-drug program |
+
+The strict tier comprises 12 of 2,448 candidate name/prior rows across those
+7 targets; two have positive and five negative proxy labels. This is far too
+small to support a credible Phase 3 significance model, and the filter may
+miss true links because names, formulations and indications vary. Exact
+condition-name overlap and drug-name fanout remain sensitivity descriptors,
+not automatic proof or hard exclusions. The broader 91 cannot safely be
+promoted to training rows merely because a written drug name matches. See the
+[B28 handoff](harness/B28_ARM_FEASIBILITY.md) and
+[task ledger](harness/TASK_LEDGER.md#b28-preregistered-exact-ordinal-cross-phase-arm-feasibility-2026-11-27)
+for grains, unknowns, examples and exact commands. No model, efficacy grade,
+or final-holdout result was produced.
+
 **Current status:** Historical cleaning and first-public design staging are
 complete, and fixed-split and rolling-year development-only model comparisons
 have run. The five
