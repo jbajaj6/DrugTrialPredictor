@@ -14,6 +14,12 @@ Branch: `leo/giannis` (verified with `git status --short --branch` on 2026-11-23
 
 Every failure must include the exact command, exit code, and artifact. A builder's assertion is not an acceptance result.
 
+## H32 state-aware incremental recovery policy (2026-11-27)
+
+**Bounded scope and acceptance criteria:** Add a persistent current-state checkpoint and a recovery policy to the existing harness, linked from its execution contract, structured-trials skill, supervisor guide and README. Preserve all accepted scientific artifacts and frozen task criteria. Distinguish engineering repair, acquisition/coverage gaps, non-estimable science and consequential scientific redesign; require evidence-linked dependency invalidation and retain three repairs per task without task-renaming resets. Validate required policy/state files through the existing harness entry point and inspect links, changed-file scope and whitespace. This is a harness/documentation change, not an automatic replanner, source replay, label change, model run or holdout access. Execution results follow below after checks.
+
+**Executed H32 verdict: PASS_SYNTHETIC (policy/harness only).** The [independent review](H32_INDEPENDENT_EVALUATION.md) accepted the bounded instruction/checkpoint changes: `PYTHONDONTWRITEBYTECODE=1 ../.venv/bin/python harness/check.py` from this directory exited 0/PASS; `git diff --check` exited 0; 162 local links resolved; B31 counts and checkpoint paths agree with its accepted evaluation. No scientific tables were queried or datasets rebuilt. The coordinator's narrower policy/state link check also exited 0 (17 links, zero missing). No repair was needed. Cross-task semantic repair-budget equivalence, dependency invalidation and scientific state reconciliation remain coordinator judgments, not new software-enforced guarantees. Accepted scientific artifacts and the sealed holdout are unchanged.
+
 ## Long-term validation and leakage audit (2026-11-23)
 
 | ID | Owner | Task and fixed acceptance criteria | State | Evidence / failures / repairs |

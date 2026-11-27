@@ -1,5 +1,20 @@
 # Bounded supervisor foundation
 
+## State-aware recovery
+
+Before assigning or recovering a task, read [current state](CURRENT_STATE.md)
+and the [incremental recovery policy](RECOVERY_POLICY.md). The coordinator
+reconciles this concise evidence index with accepted evaluations and SQLite
+execution status, then revises only affected steps. Local fixes do not require
+restarting research or rebuilding accepted data. Scientific redesign and
+dependency invalidation must be recorded explicitly. Distinct strategy names
+do not reset the same task's three-repair budget; a new task ID must not bypass
+it. This is an agent/coordinator policy: `supervisor.py` does not automatically
+enforce cross-task scientific equivalence, dependency invalidation or semantic
+state reconciliation, and is not an unattended scientific planner.
+
+## Launcher and execution state
+
 `supervisor.py` is a small, external, SQLite-backed launch gate. It does not run
 anything on import, `handoff`, or `run --dry-run`. The database and all attempt
 outputs should be placed in a new, ignored run directory; never reuse an output

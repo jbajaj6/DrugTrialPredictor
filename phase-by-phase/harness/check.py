@@ -15,6 +15,8 @@ REQUIRED = (
     "skills/structured-trials/SKILL.md",
     "harness/EXECUTION_RULES.md",
     "harness/TASK_LEDGER.md",
+    "harness/RECOVERY_POLICY.md",
+    "harness/CURRENT_STATE.md",
     "harness/check.py",
     "requirements.txt",
     "src/phase_by_phase/acquire.py",

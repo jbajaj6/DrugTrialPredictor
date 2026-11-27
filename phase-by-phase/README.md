@@ -22,6 +22,15 @@ The [cleaned-data structure and category guide](HISTORICAL_CLEANED_SCHEMA.md)
 shows the arm, intervention, result, and text tables, their keys, and which
 source categories remain raw rather than normalized.
 
+**Resume without restarting:** The harness now keeps a compact
+[current-state checkpoint](harness/CURRENT_STATE.md) and
+[incremental recovery policy](harness/RECOVERY_POLICY.md). Agents preserve
+unaffected accepted work, diagnose the specific deviation, and change only
+the remaining affected route. Engineering repairs, scientific redesign and
+non-estimable analyses are distinct; evidence, dependency invalidation, the
+three-repair limit and sealed-holdout rules remain mandatory. This adds
+persistent operating instructions, not an automatic replanning dispatcher.
+
 **Overnight structured-data checkpoint (2026-11-27):** A resumable,
 SQLite-backed [supervisor](harness/SUPERVISOR.md) now runs bounded Codex tasks
 with saved attempts, usage preflight, and independent acceptance evidence. Its
