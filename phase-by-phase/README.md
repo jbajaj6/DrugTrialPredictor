@@ -257,6 +257,32 @@ passed 29 focused and 612 project tests and the harness, and replayed all
 six files byte-for-byte. See the [handoff](harness/B30_PLANNED_PRIMARY_COVERAGE.md)
 and [task ledger](harness/TASK_LEDGER.md#b30-preregistered-first-public-planned-primary-coverage-for-b29-queue-2026-11-27).
 
+**B31 endpoint review casebook (2026-11-27):** The
+[header-only implementation](src/phase_by_phase/endpoint_review_package_b31.py)
+prepared a [reviewer-facing casebook](data/processed/b31_full_2026-11-27_v2/reviewer/casebook.html)
+for the 343 B29 cases. It keeps **452 first-public planned-primary rows** and
+**396 later reported PRIMARY headers** in separate, many-per-case tables;
+it does not automatically pair them or infer clinical benefit. All 269 cases
+with a selected result have at least one eligible header in this snapshot.
+The 74 without a selected result, 52 with a result but no inherited outcome
+pointer, and 14 without an exact-first-public planned row remain explicit
+structural states, not negative outcomes. Exact NCT/version/date/source keys
+and selection metadata live in a separate audit-only crosswalk; reviewer
+files have opaque IDs and blank human fields, not p values, proxy classes or
+selection reasons. This is **not complete blinding**: study wording and
+reported-header presence may identify a case. The first output exposed one
+literal NCT identifier in reviewer prose and is **rejected for blinded
+distribution**. The repaired v2 masks such IDs only in reviewer text and
+preserves original audit text. The
+[independent evaluation](harness/B31_INDEPENDENT_EVALUATION.md) verified exact
+source-row multisets, 38 focused and 650 full-suite tests, harness PASS, and
+all 15 files in a byte-identical fresh replay. See the
+[builder handoff](harness/B31_ENDPOINT_REVIEW_PACKAGE.md) and
+[task ledger](harness/TASK_LEDGER.md#b31-preregistered-blinded-plannedreported-header-review-package-2026-11-27).
+**Next gate:** two independent human reviewers and a prespecified
+reconciliation rubric; no efficacy labels or model training follow from this
+casebook alone.
+
 **Current status:** Historical cleaning and first-public design staging are
 complete, and fixed-split and rolling-year development-only model comparisons
 have run. The five

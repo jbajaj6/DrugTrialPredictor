@@ -1,0 +1,35 @@
+# B31 independent evaluation — PASS_REAL_DATA_CHECKS for repaired v2
+
+2026-11-27. Supervised builder attempt 1 exited 0 (coordinator-confirmed). **Verdict: PASS_REAL_DATA_CHECKS for the repaired v2 proxy-class/significance-blinded manual review package only.** The preserved v1 package failed the explicit registry-ID blinding check and must not be distributed as a blinded package. One targeted repair added literal reviewer-text masking; v2 passes. No clinical annotation, planned/reported match, label, efficacy, prevalence or model conclusion follows.
+
+I read `../AGENTS.md`, `../skills/structured-trials/SKILL.md`, `EXECUTION_RULES.md`, the frozen B31 ledger section, `B31_BUILDER_PROMPT.md`, B29/B30 accepted independent evaluations, the entire B31 module, focused tests, builder handoff and v2 output. I did not edit builder code, source, earlier artifacts, ledger or README.
+
+## Hash-first and bounded source access
+
+The module `../src/phase_by_phase/endpoint_review_package_b31.py` authenticates seven pinned inputs before DuckDB connection or source-row query: B30 manifest/trial summary/planned rows, B17 manifest/outcome-header Parquet, and inherited B29 manifest/queue. It verifies declared lineage, schema/footer and frozen row counts. Pins include B30 manifest `bc78b2f363f599988f9b37f96d75273873bee458b170b764bf9903934a7ab358`, B17 manifest `778d4a5f97d4afa868747d8d44269ff3bde203faeb08b5b0442d84d872a0cdd2`, and B17 header `fdc66c89dee518f6a78ac18b8c731fa30c3949772fd05409cd8a2b10ebfd2517`. Final module SHA-256 is `568ecbb86b2b0655bb4544074dc3cd28b4f9de703e969c0c91ccf1d4c6e2a623`.
+
+The B17 source projection contains only exact header keys, type, title/description/time frame, obsolete flags and adapter provenance. A key/date-only audit precedes text materialization. The text-bearing query semijoins B17 to the **269** B30 selected-result NCT/version keys inside DuckDB, requires the adapter public date to equal B30's selected-result date, strictly after the checkpoint and before 2024, and keeps every exact `PRIMARY` header. It does not open analyses, p/CI, measurements, groups, arms, result summaries, 2024+ holdout or model files. Planned rows remain a separate B30 table; there is no planned/reported pair join, ordinal or text matcher, or primary-selection-by-p. Resource settings are 2 GiB, two threads and zero spill.
+
+My own read-only source query, run **after** `verify_inputs()`, semijoined the authenticated B17 header to the 269 exact keys/date conditions and compared every projected raw header field plus physical B17 row number to `audit_only/reported.parquet` using both-direction `EXCEPT ALL`: **396 source rows, 0 missing, 0 extra, 0 invalid version/date rows**. A separate all-field B30 planned-row multiset comparison found **0 missing/0 extra** across 452 rows, with zero wrong-first-public-version rows. Opaque case IDs and reviewer-order hashes independently matched the prescribed domain-separated NCT hashes for all 343 cases. Audit-only examples: `NCT00132873` result v4/date 2013-11-25 has both PRIMARY ordinals 0 and 1 (B17 rows 39275/39276) despite no inherited B29 outcome pointer; `NCT00598806` v9 row 6035, `NCT00672854` v13 row 10330, and `NCT02314117` v36 row 76584 each retain an exact PRIMARY header. No cross-version ordinal equality was interpreted as endpoint identity.
+
+## Independent execution
+
+All commands ran from `phase-by-phase/` and their results below are evaluator observations.
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Focused | `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src ../.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_endpoint_review_package_b31.py` | Exit 0; 38 passed |
+| Full | `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src ../.venv/bin/python -m pytest -q -p no:cacheprovider tests` | Exit 0; 650 passed, five existing deprecation warnings |
+| Harness | `PYTHONDONTWRITEBYTECODE=1 ../.venv/bin/python harness/check.py` | Exit 0; PASS |
+| Fresh offline replay | `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src ../.venv/bin/python -m phase_by_phase.endpoint_review_package_b31 --out data/processed/b31_eval_replay_2026-11-27_v1` | Exit 0; 343 cases, 452 planned rows, 396 audit/reviewer reported headers |
+| Byte comparison | `diff -rq data/processed/b31_full_2026-11-27_v2 data/processed/b31_eval_replay_2026-11-27_v1` | Exit 0; all 15 files identical |
+
+The v2 manifest SHA-256 is `f8cf3bfc4b32184ac8a59c680f51a24aa76aae1e675f87ff92f51c635a4d7bb1`. It lists seven input digests and 14 content-output digests. I rehashed all 14 files: zero mismatches. The audit-only 343 cases include **269** selected results and **74** no-result unknowns; **52** of the 269 have no inherited outcome pointer yet their eligible headers are still retained. All 269 selected-result cases have at least one eligible header in this snapshot; there are zero missing-header/PRIMARY/eligible cases here, but synthetic tests cover them. The 14 B30 zero-planned cases remain explicitly unknown.
+
+Reviewer-facing Parquet schemas exactly match the allowlists: cases have nine columns, planned ten, reported ten; the respective row counts are **343/452/396**. No NCT/version/date, B22 reason/proxy, B29 stratum/known-anchor status, B17 grade, analysis or p/value field is in those reviewer schemas. Every human field is null in all three reviewer tables. The reviewer casebook HTML and planned/reported CSVs have **zero literal registry-ID pattern matches**. Direct text comparison found **zero** differences between reviewer wording and audit-only raw wording after only the documented literal registry-ID replacement. The casebook is static and warns that study prose can still reidentify a case and header presence remains visible: the blinding claim is deliberately limited to proxy class/significance, not full deidentification. Exact keys and selection metadata remain in `audit_only/`, which must not be shared with blinded reviewers.
+
+## Failure record and scientific stop
+
+The builder's initial `b31_full_2026-11-27_v1` output passed initial tests but its separate source/blinding audit exited **1** at the `NCT`-in-reviewer assertion: one reported description exposed a literal earlier-study registry ID. That preserved v1 artifact is **not** accepted. Targeted repair 1 masked explicit registry IDs in reviewer text only, retaining raw source wording in audit-only files; the repaired v2 focused/full/harness, source/blinding audit and replay all passed. My own evaluator commands had no failures. This is a logical access/schema audit, not an OS-level proof that Parquet IO never touched an unrelated physical byte.
+
+Passing v2 authorizes only a prepared, inspectable package for a later, separately prespecified two-reviewer process. First-public planned wording does not prove original prespecification or independently dated child publication; reported PRIMARY is not necessarily the originally planned endpoint. Wording/ordinal agreement is not clinical identity, and disagreement is not automatically endpoint switching. No label recoverability, population prevalence, clinical efficacy or prediction score is established.
