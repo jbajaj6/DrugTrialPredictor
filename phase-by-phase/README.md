@@ -22,6 +22,51 @@ The [cleaned-data structure and category guide](HISTORICAL_CLEANED_SCHEMA.md)
 shows the arm, intervention, result, and text tables, their keys, and which
 source categories remain raw rather than normalized.
 
+**Overnight structured-data checkpoint (2026-11-27):** A resumable,
+SQLite-backed [supervisor](harness/SUPERVISOR.md) now runs bounded Codex tasks
+with saved attempts, usage preflight, and independent acceptance evidence. Its
+first supervised real-data task was the [B19 endpoint audit](harness/B19_AUDIT.md),
+not a new efficacy model. The [independent evaluation](harness/B19_INDEPENDENT_EVALUATION.md)
+passed 55 focused and 309 full-suite tests and verified the pinned inputs,
+output hashes, unique keys, deterministic review sample, and pre-2024 dates.
+The supervisor is a **foundation**, not yet a fully unattended scientific
+dispatcher; interrupted work remains unreviewed until an operator checks it.
+
+The B19 audit covers **8,414** selected Phase 3 trial versions and **15,295**
+primary outcomes, retaining exact version/child keys and **120** actual-trial
+review records. Of the 8,414 trials, 6,006 have one primary endpoint and 4,212
+have a primary p-value recorded somewhere; these conditions alone do not prove
+benefit. At outcome grain, 1,713 have an explicit treatment/comparator role
+contrast, but that is still a structural candidate, not clinical validation.
+The historical analysis-type field distinguishes superiority, non-inferiority,
+equivalence, and ambiguous combined categories; a failed pilot that conflated
+them was preserved and repaired before the full replay. **No new efficacy
+labels, model scores, or 2024+ holdout results were produced.**
+
+**Drug-identity evidence pilot (B20, 2026-11-27):** The
+[bridge implementation](src/phase_by_phase/bridge_b20.py) preserves each sampled
+historical trial/version, arm, intervention, alias, arm–intervention assertion,
+and exact-version condition as separate inspectable records. On 150 selected
+development-only Phase 3 trial versions it found 369 normalized recorded drug
+names. A bounded public ChEMBL query attempted the first 200 names, with 189
+successful responses, 11 name-level failures, 67 truncated searches and 169
+names outside the budget. The
+[independent network evaluation](harness/B20_NETWORK_EVALUATION.md) verified
+all source/cache hashes and a byte-identical offline replay; the
+[HTTPS-repair evaluation](harness/B20_REPAIR1_EVALUATION.md) passed 40 focused
+tests, 349 project tests, the harness, and a live verified-HTTPS smoke test.
+A local, Git-ignored review sheet contains **candidate** matches only. No molecule has been clinically verified,
+and contemporary ChEMBL data have not been made historical predictors. This
+enriched sample and alphabetical query budget cannot estimate population
+coverage or candidate precision. Unqueried, failed and truncated names remain
+unknown. The [task ledger](harness/TASK_LEDGER.md#b20-bounded-drug-identity-bridge-pilot-pre-registered-2026-11-27)
+records the original CA failure and bounded repair.
+
+The next development-only [B22 proxy audit](harness/TASK_LEDGER.md#b22-preregistered-phase-3-reported-superiority-p-proxy-audit-2026-11-27)
+tests whether a narrow, fully traced **reported primary superiority p<0.05**
+label is supportable. That proxy is separate from completion and does not mean
+the drug worked. It is not yet an accepted label or model result.
+
 **Current status:** Historical cleaning and first-public design staging are
 complete, and fixed-split and rolling-year development-only model comparisons
 have run. The five
