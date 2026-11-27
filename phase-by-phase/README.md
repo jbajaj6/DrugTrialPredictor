@@ -214,6 +214,29 @@ promoted to training rows merely because a written drug name matches. See the
 for grains, unknowns, examples and exact commands. No model, efficacy grade,
 or final-holdout result was produced.
 
+**B29 Phase 3 label-review queue (2026-11-27):** The
+[metadata-only implementation](src/phase_by_phase/label_review_queue_b29.py)
+preserves one row for each of the **19,576** development Phase 3 targets and
+its exclusive B22 reason for a known or unknown reported-p proxy. It generated
+a [343-case review queue](data/processed/b29_full_2026-11-27_v1/review_queue.csv):
+150 reproducibly SHA-ranked cases from the full cohort, 168 disjoint cases
+enriched across eight rare reasons, and 25 known-report anchors. The two
+nine-case reasons are exhausted rather than topped up. The queue carries
+first-public and later selected-result version/date *pointers* separately,
+B19 structural states only on exact result-version/date matches, and blank
+human-adjudication columns. It does **not** copy target p values, measurement
+values, endpoint prose or positive/negative labels into the review sheet.
+The [independent evaluation](harness/B29_INDEPENDENT_EVALUATION.md) checked
+source hashes and projected columns, exact lineage, unique keys, selection,
+31 focused and 583 project tests, harness PASS, and a five-file byte-identical
+replay. The fixed seed supports a reproducible pseudorandom queue but does not
+alone justify a population prevalence confidence interval; the enriched
+343-case queue cannot estimate prevalence. This is **not clinical annotation,
+label expansion, or model performance**. A separate protocol and human review
+of original and result versions are needed before considering a broader
+Phase 3 benefit label. See the [handoff](harness/B29_LABEL_REVIEW_QUEUE.md)
+and [task ledger](harness/TASK_LEDGER.md#b29-preregistered-phase-3-label-availability-review-queue-2026-11-27).
+
 **Current status:** Historical cleaning and first-public design staging are
 complete, and fixed-split and rolling-year development-only model comparisons
 have run. The five
