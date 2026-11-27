@@ -62,10 +62,24 @@ coverage or candidate precision. Unqueried, failed and truncated names remain
 unknown. The [task ledger](harness/TASK_LEDGER.md#b20-bounded-drug-identity-bridge-pilot-pre-registered-2026-11-27)
 records the original CA failure and bounded repair.
 
-The next development-only [B22 proxy audit](harness/TASK_LEDGER.md#b22-preregistered-phase-3-reported-superiority-p-proxy-audit-2026-11-27)
-tests whether a narrow, fully traced **reported primary superiority p<0.05**
-label is supportable. That proxy is separate from completion and does not mean
-the drug worked. It is not yet an accepted label or model result.
+The development-only [B22 proxy audit](harness/B22_PROXY.md) and its
+[independent evaluation](harness/B22_INDEPENDENT_EVALUATION.md) have now run.
+From **19,576** first-public Phase 3 targets, exactly **297** have a narrow,
+traceable reported primary superiority-p proxy: **170 below 0.05**, **127 at
+or above 0.05**, and **19,279 unknown**. The first output was rejected because
+nullable source keys became floating-point; the repaired output preserves
+integer keys, passed a large-key regression and a byte-identical independent
+full replay, plus 34 focused and 393 full-suite evaluator tests and the
+harness. The proxy says only what a reported statistical test said; it does
+**not** establish effect direction, clinical benefit, or approval. No known
+label was public before 2016, and the later rolling cohorts fail the fixed
+training/validation support gates, so **no new model or AUC was produced**.
+
+A separate [B23 probability-sampled coverage pilot](harness/TASK_LEDGER.md#b23-preregistered-probability-panel-molecular-candidate-coverage-pilot-2026-11-27)
+is measuring contemporary ChEMBL *candidate-evidence* coverage for 100
+first-public Phase 3 records. It is not a verified drug identity or a
+historical model feature; its acquisition and independent review are still
+in progress.
 
 **Current status:** Historical cleaning and first-public design staging are
 complete, and fixed-split and rolling-year development-only model comparisons
