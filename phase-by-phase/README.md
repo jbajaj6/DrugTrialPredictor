@@ -110,6 +110,27 @@ multiset checks, and an independently byte-identical full replay. **B24
 changes no training features or model scores, and does not choose a link
 policy.** The 2024+ holdout and outcome/result tables were not opened.
 
+**B25 exact preferred-name rescue (2026-11-27):** The
+[bounded implementation](src/phase_by_phase/prefname_rescue_b25.py),
+[builder handoff](harness/B25_PREFNAME_RESCUE.md), and
+[independent evaluation](harness/B25_INDEPENDENT_EVALUATION.md) revisited the
+**60** names whose B23 broad ChEMBL searches hit a page cap. The first pilot
+was blocked by DNS and remains preserved as a failed attempt. A separate
+network-enabled run passed the frozen ten-name pilot, attempted all 60 names
+under the same caps, and passed a byte-identical offline replay. The result is
+**5 exact preferred-name candidates, 32 complete searches with no preferred-
+name hit, and 23 HTTP/transport failures**. The latter two categories remain
+**molecular-unknown**, not negative matches. Three additional trials in the
+100-trial sample gained positive candidate evidence: B23's 47 candidate-
+present / 20 no-exact-candidate / 33 unknown became **50 / 20 / 30** under
+positive-only augmentation. The within-sample partial-identification range
+moved from 47%–80% to **50%–80%**; it is not a population bound or a verified
+drug-match rate. The independent evaluator checked all 97 attempts, source
+lineage, 24 focused and 430 project tests, harness PASS, and six byte-identical
+full output files. ChEMBL records are contemporary retrospective annotations:
+**B25 changes no clinical identity, historical predictor, arm-link policy,
+model score, or 400-trial scale authorization.**
+
 **Current status:** Historical cleaning and first-public design staging are
 complete, and fixed-split and rolling-year development-only model comparisons
 have run. The five
