@@ -89,6 +89,27 @@ historical model feature. Because 33 trial statuses remain unresolved, the
 independent pass **does not authorize the planned 400-trial scale-up**; a new
 acquisition and uncertainty plan is needed first.
 
+**B24 arm–intervention link audit (2026-11-27):** The
+[implementation](src/phase_by_phase/arm_link_audit_b24.py),
+[builder handoff](harness/B24_ARM_LINK_AUDIT.md), and
+[independent evaluation](harness/B24_INDEPENDENT_EVALUATION.md) audited both
+directions of the historical arm–intervention assertions on **68,623**
+first-public development trials. The full source graph has **354,917**
+assertions and **184,256** distinct exact arm/intervention-ordinal edges:
+170,661 reciprocal, 7,322 intervention-only, and 6,273 arm-group-only. Of
+13,595 one-sided edges, 13,569 pair with the opposite direction at the same
+arm and **same written name but a different intervention ordinal**. That is
+an ordinal/source-format disagreement, not verified chemical or regimen
+identity. The review table keeps 14,993 assertions with original provenance
+and text for manual inspection. Intervention-only, union, and reciprocal-only
+policies produce different candidate rows and primary-eligible trials;
+reciprocal-only both gains 378 and loses 30 primary-eligible trials relative
+to intervention-only. The builder used its three logged repairs; the final
+run passed 13 focused tests, 406 project tests, the harness, exact-source
+multiset checks, and an independently byte-identical full replay. **B24
+changes no training features or model scores, and does not choose a link
+policy.** The 2024+ holdout and outcome/result tables were not opened.
+
 **Current status:** Historical cleaning and first-public design staging are
 complete, and fixed-split and rolling-year development-only model comparisons
 have run. The five
