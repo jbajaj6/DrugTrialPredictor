@@ -1,4 +1,4 @@
-# B31 builder assignment: outcome-status-blinded endpoint review package
+# B31 builder assignment: proxy-class-blinded endpoint review package
 
 Read `AGENTS.md`, `skills/structured-trials/SKILL.md`, `harness/EXECUTION_RULES.md`, frozen B31 ledger section, and B29/B30 independent evaluations before editing. Own only a standalone B31 module, focused tests, `harness/B31_ENDPOINT_REVIEW_PACKAGE.md`, and fresh ignored `b31_*` artifacts. Do not edit prior code, source, ledger or README. No result analyses, p/CI/measurement, target proxy class, holdout, model or automatic labels. A human-review package is the entire scope.
 
