@@ -237,6 +237,26 @@ of original and result versions are needed before considering a broader
 Phase 3 benefit label. See the [handoff](harness/B29_LABEL_REVIEW_QUEUE.md)
 and [task ledger](harness/TASK_LEDGER.md#b29-preregistered-phase-3-label-availability-review-queue-2026-11-27).
 
+**B30 first-public planned-primary package (2026-11-27):** The
+[versioned-source audit](src/phase_by_phase/planned_primary_coverage_b30.py)
+joined the 343 B29 review trials to the original *planned-primary table at
+each trial's exact first-public NCT/version*. It preserved **452 raw planned
+measure/time-frame/description rows** for **329** trials with source ordinals
+and physical-row provenance. **14** had no row at that exact version (13
+appear only at other versions; one is absent from this child table), so they
+are `not_observed`, **not** “no primary outcome was planned.” The
+[planned-text CSV](data/processed/b30_full_2026-11-27_v1/planned_primary_rows.csv)
+is an inspectable input to future human review; a separate 343-row summary
+retains the B29 selection stratum and later result *pointers only*. It does
+not compare later result wording or infer endpoint switching, prespecification,
+benefit, or a label. Child rows have no independently observed public date;
+the date is associated with the whole historical version. The
+[independent evaluation](harness/B30_INDEPENDENT_EVALUATION.md) authenticated
+19 inputs, matched all 452 source rows and B29 metadata without discrepancy,
+passed 29 focused and 612 project tests and the harness, and replayed all
+six files byte-for-byte. See the [handoff](harness/B30_PLANNED_PRIMARY_COVERAGE.md)
+and [task ledger](harness/TASK_LEDGER.md#b30-preregistered-first-public-planned-primary-coverage-for-b29-queue-2026-11-27).
+
 **Current status:** Historical cleaning and first-public design staging are
 complete, and fixed-split and rolling-year development-only model comparisons
 have run. The five
