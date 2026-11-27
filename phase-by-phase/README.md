@@ -131,6 +131,37 @@ full output files. ChEMBL records are contemporary retrospective annotations:
 **B25 changes no clinical identity, historical predictor, arm-link policy,
 model score, or 400-trial scale authorization.**
 
+**B26 cross-phase source-name bridge (2026-11-27):** The
+[implementation](src/phase_by_phase/cross_phase_bridge_b26.py),
+[builder handoff](harness/B26_CROSS_PHASE_BRIDGE.md), and
+[independent evaluation](harness/B26_INDEPENDENT_EVALUATION.md) now preserve
+the first-public trial, arm, intervention, assertion, alias and condition
+tables at their original grains and exact NCT/version keys. On **68,623**
+development trials, the source-only audit retained **121,039 arms, 159,113
+interventions, 184,256 arm/intervention edges, 77,458 aliases and 108,097
+exact-version condition rows**. Of the DRUG intervention strings, the
+unchanged conservative B18 normalizer produced **42,844 candidate name
+keys**; 5,702 appear in two or more phases. With the earlier registration
+strictly before the later checkpoint, **14,631 of 29,704 Phase 2 trials**
+have an earlier Phase 1 same-name record. For Phase 3, 7,443 have an earlier
+Phase 1 same-name record, 9,566 an earlier Phase 2 same-name record, and
+**10,300 of 19,576** have at least one of those. These are *distinct later
+trials with possible text overlap*, not verified drug, regimen, indication,
+arm exposure, or earlier-result links. They must not be turned into model
+features without a separate preregistered identity and timing policy.
+
+Unlinked DRUG interventions, one-sided arm links, controls, combinations,
+aliases, and high-fanout generic names remain visible as separate uncertainty
+flags. The raw condition children have no independent publication-date field;
+the exact historical trial version supplies their recorded checkpoint, not
+proof of when each condition value was first known. No outcome/result table,
+2024+ holdout, chemical annotation, API, or model was used. Two targeted code
+repairs were recorded, including a synthetic future-public-date failure.
+The final source-only run passed **34 focused and 464 project tests**, the
+harness, source multiset and timing checks, and an independent **18/18-file
+byte-identical full replay**. This is a safe, pausable linkage *inventory*,
+not an efficacy result or prediction score.
+
 **Current status:** Historical cleaning and first-public design staging are
 complete, and fixed-split and rolling-year development-only model comparisons
 have run. The five
