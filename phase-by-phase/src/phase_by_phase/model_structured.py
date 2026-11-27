@@ -29,6 +29,28 @@ TASKS = {"completion": ("completion_label", "completion_label_available_date"),
          "significance": ("significance_label", "significance_label_available_date")}
 
 
+def _design_feature_support(train: pd.DataFrame, val: pd.DataFrame) -> dict:
+    """Disclose actual historical design availability in labeled model rows."""
+    columns = NUMERIC_DESIGN + CATEGORICAL_DESIGN
+
+    def summarize(part: pd.DataFrame) -> dict:
+        observed = part[columns].notna()
+        return {"rows": int(len(part)),
+                "historical_design_verified_rows": int(part.historical_design_verified.eq(True).sum()),
+                "rows_with_any_observed_design": int(observed.any(axis=1).sum()),
+                "nonmissing_by_feature": {col: int(observed[col].sum()) for col in columns}}
+
+    train_support, val_support = summarize(train), summarize(val)
+    if train_support["rows_with_any_observed_design"] == 0:
+        status = "calendar_only_no_observed_design_in_training"
+    elif val_support["rows_with_any_observed_design"] == 0:
+        status = "design_trained_but_unobserved_in_validation"
+    else:
+        status = "historical_design_observed_in_both"
+    return {"train": train_support, "validation": val_support,
+            "model_input_status": status}
+
+
 def _metrics(y: np.ndarray, p: np.ndarray) -> dict:
     bins = np.minimum((np.asarray(p) * 5).astype(int), 4)
     calibration = [{"lower": i / 5, "upper": (i + 1) / 5,
@@ -118,6 +140,8 @@ def development_evaluation(rows: pd.DataFrame, bridge: pd.DataFrame) -> dict:
             subset = phase_rows.loc[phase_dates < VALIDATION_END].copy()
             pdate = pd.to_datetime(subset.prediction_date)
             adate = pd.to_datetime(subset[available], errors="coerce")
+            if (adate.notna() & (adate <= pdate)).any():
+                raise ValueError(f"{available} is not after prediction_date")
             train = subset.loc[(pdate < TRAIN_END) & (adate < TRAIN_END) & subset[label].notna()].copy()
             val = subset.loc[(pdate >= TRAIN_END) & (pdate < VALIDATION_END) &
                              (adate < VALIDATION_END) & subset[label].notna()].copy()
@@ -125,15 +149,19 @@ def development_evaluation(rows: pd.DataFrame, bridge: pd.DataFrame) -> dict:
             counts = {"train_rows": len(train), "train_positive": int(train[label].eq(True).sum()),
                       "validation_rows": len(val), "validation_positive": int(val[label].eq(True).sum()),
                       "sealed_rows_2024_onward": sealed_count}
+            support = _design_feature_support(train, val)
             # No outcome inspection or score computation on 2024+ rows.
             if len(train) < 100 or len(val) < 30 or train[label].nunique() < 2 or val[label].nunique() < 2:
                 phase_report[key] = {"status": "not_estimable", "counts": counts,
+                                     "feature_support": support, "model_input_status": "not_fitted",
                                      "reason": "development class/row support gate failed"}
                 continue
             y_train = train[label].astype(int).to_numpy()
             y_val = val[label].astype(int).to_numpy()
             rate = float(y_train.mean())
             result = {"status": "development_only", "counts": counts,
+                      "feature_support": support,
+                      "model_input_status": support["model_input_status"],
                       "prevalence": _metrics(y_val, np.full(len(val), rate))}
             for features in ("design", "design_plus_earlier"):
                 if features == "design_plus_earlier":
@@ -150,11 +178,16 @@ def development_evaluation(rows: pd.DataFrame, bridge: pd.DataFrame) -> dict:
             matched = {"train_rows": len(matched_train), "validation_rows": len(matched_val),
                        "train_positive": int(matched_train[label].eq(True).sum()),
                        "validation_positive": int(matched_val[label].eq(True).sum())}
+            matched_support = _design_feature_support(matched_train, matched_val)
             if (len(matched_train) < 100 or len(matched_val) < 30 or
                     matched_train[label].nunique() < 2 or matched_val[label].nunique() < 2):
-                result["matched_evidence_comparison"] = {"status": "not_estimable", "counts": matched}
+                result["matched_evidence_comparison"] = {"status": "not_estimable", "counts": matched,
+                                                          "feature_support": matched_support,
+                                                          "design_model_input_status": "not_fitted"}
             else:
-                matched_result = {"status": "development_only", "counts": matched}
+                matched_result = {"status": "development_only", "counts": matched,
+                                  "feature_support": matched_support,
+                                  "design_model_input_status": matched_support["model_input_status"]}
                 predictions = {}
                 for name, evidence in (("design", []), ("design_plus_earlier", EVIDENCE)):
                     numeric = ["launch_year"] + NUMERIC_DESIGN + evidence

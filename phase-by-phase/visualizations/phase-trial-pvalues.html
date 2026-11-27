@@ -1,0 +1,53 @@
+<div id="phase-trial-pvalues">
+  <section id="phase-trial-totals" data-viz-composition>
+    <div data-viz-container></div>
+    <script type="application/json" data-viz-chart>
+      {
+        "id": "phase-trial-totals",
+        "title": "Trials by phase",
+        "description": "One NCT per trial; first publicly registered 2005–2019, with a recorded drug intervention. Pure-phase trials only.",
+        "height": 300,
+        "spec": {
+          "type": "bar",
+          "x": "Phase",
+          "y": "Trials",
+          "yLabel": "Number of trials",
+          "showValues": true,
+          "sortOrder": "original"
+        },
+        "columns": ["Phase", "Trials"],
+        "rows": [["Phase 1", 19343], ["Phase 2", 29704], ["Phase 3", 19576]]
+      }
+    </script>
+  </section>
+  <section id="phase-trial-p-results" data-viz-composition>
+    <div data-viz-container></div>
+    <script type="application/json" data-viz-chart>
+      {
+        "id": "phase-trial-p-results",
+        "title": "Trials with an interpretable primary p-value",
+        "description": "Subset of the trials above; a missing or ambiguous p-value is unknown, not p ≥ .05. Labels were available before 2024.",
+        "height": 300,
+        "spec": {
+          "type": "bar",
+          "x": "Phase",
+          "y": ["p < .05", "p ≥ .05"],
+          "yLabel": "Number of trials",
+          "showValues": true,
+          "showLegend": true,
+          "sortOrder": "original"
+        },
+        "columns": ["Phase", "p < .05", "p ≥ .05"],
+        "rows": [["Phase 1", 19, 19], ["Phase 2", 247, 385], ["Phase 3", 661, 396]]
+      }
+    </script>
+  </section>
+</div>
+<script type="module">
+  import { mountChart } from "https://persistent.oaistatic.com/plugins/visualize/charts/1.2.3/element.js";
+  const root = document.getElementById("phase-trial-pvalues");
+  for (const section of root.querySelectorAll("[data-viz-composition]")) {
+    const config = JSON.parse(section.querySelector("[data-viz-chart]").textContent);
+    mountChart(section.querySelector("[data-viz-container]"), config);
+  }
+</script>

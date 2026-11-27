@@ -133,3 +133,52 @@ def test_many_programs_without_results_are_processed_without_quadratic_filters()
     rows = build_trial_snapshots({"trials": trials, "program_trials": bridge}, structured, "2023-12-31")
     assert len(rows) == 3000
     assert rows.prior_result_count.sum() == 0
+
+
+@pytest.mark.parametrize("completion,retained", [
+    ("2018-12-31", False), ("2019-01-03", False), ("2019-01-04", True)])
+def test_completed_trial_must_be_prospective_at_checkpoint(completion, retained):
+    nct = "NCT00000001"
+    trials = pd.DataFrame([trial(nct, "PHASE2", "2019-01-01", "2019-01-03",
+                                 None, completion=completion, last_update="2020-01-01")])
+    bridge = pd.DataFrame({"nct_id": [nct], "program_id": ["p"]})
+    structured = build_structured_tables([])
+    rows = build_trial_snapshots({"trials": trials, "program_trials": bridge}, structured, "2022-01-01")
+    assert (len(rows) == 1) is retained
+
+
+def test_same_day_public_target_result_is_not_prospective():
+    nct = "NCT00000001"
+    trials = pd.DataFrame([trial(nct, "PHASE2", "2019-01-01", "2019-01-03",
+                                 "2019-01-03", completion="2020-01-01",
+                                 last_update="2019-01-03")])
+    bridge = pd.DataFrame({"nct_id": [nct], "program_id": ["p"]})
+    structured = build_structured_tables([study(nct, "2019-01-03")])
+    rows = build_trial_snapshots({"trials": trials, "program_trials": bridge}, structured, "2022-01-01")
+    assert rows.empty
+
+
+def test_public_target_result_excluded_even_when_significance_unknown():
+    nct = "NCT00000001"
+    trials = pd.DataFrame([trial(nct, "PHASE2", "2019-01-01", "2019-01-03",
+                                 "2019-01-03", completion="2020-01-01",
+                                 last_update="2020-01-01")])
+    bridge = pd.DataFrame({"nct_id": [nct], "program_id": ["p"]})
+    rows = build_trial_snapshots({"trials": trials, "program_trials": bridge},
+                                 build_structured_tables([study(nct, "2019-01-03", None)]),
+                                 "2022-01-01")
+    assert rows.empty
+
+
+@pytest.mark.parametrize("completion,retained", [
+    ("2018-12", False), ("2019-01", False), ("2019-02", True)])
+def test_month_only_actual_completion_interval_is_conservative(completion, retained):
+    nct = "NCT00000001"
+    trials = pd.DataFrame([trial(nct, "PHASE2", "2019-01-01", "2019-01-03",
+                                 None, completion=completion, last_update="2020-01-01")])
+    bridge = pd.DataFrame({"nct_id": [nct], "program_id": ["p"]})
+    rows = build_trial_snapshots({"trials": trials, "program_trials": bridge},
+                                 build_structured_tables([]), "2022-01-01")
+    assert (len(rows) == 1) is retained
+    if retained:
+        assert pd.isna(rows.iloc[0].completion_label)

@@ -241,6 +241,29 @@ def build_trial_snapshots(tables: dict[str, pd.DataFrame], structured_tables: di
         prediction = max(row.start_ts, row.first_post_ts)
         if prediction > end:
             continue
+        if pd.notna(row.result_post_ts) and row.result_post_ts <= prediction:
+            # This target has already published its own results. Even if the
+            # current analysis is ambiguous, it is no longer a clean
+            # prospective at-checkpoint prediction.
+            continue
+        # A trial already completed by the first observable checkpoint is not
+        # a prospective prediction target. Date-only records cannot establish
+        # whether completion preceded registration on the same day, so exclude
+        # equality as well.
+        if str(row.completion_date_type).upper() == "ACTUAL":
+            if pd.notna(row.completion_ts) and row.completion_ts <= prediction:
+                continue
+            # Month-only dates are intervals, not an exact day. If that month
+            # overlaps or precedes the prediction month, prospectivity cannot
+            # be certified. A later month remains an unlabeled target.
+            raw_completion = row.completion_date
+            if isinstance(raw_completion, str) and re.fullmatch(r"\d{4}-\d{2}", raw_completion):
+                try:
+                    completion_month = pd.Period(raw_completion, freq="M")
+                except ValueError:
+                    completion_month = None
+                if completion_month is not None and completion_month <= prediction.to_period("M"):
+                    continue
         prior_candidates = []
         seen_prior: set[str] = set()
         for item in history_by_program.get(row.program_id, ()):
